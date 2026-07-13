@@ -1,0 +1,28 @@
+{
+  "name": "redline-core",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Redline —— 通用文档预览标记内核。只读渲染任意格式 + 叠加标注层，不写回源文件。宿主无关（不依赖 Tauri/Electron），通过 RedlineHost 接口接入任意宿主。",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "pdfjs-dist": "^5.4.149",
+    "mammoth": "^1.11.0",
+    "xlsx": "^0.18.5",
+    "fflate": "^0.8.2",
+    "ag-psd": "^28.0.1",
+    "three": "^0.180.0",
+    "dxf-parser": "^1.1.2"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "^5.8.3"
+  }
+}
