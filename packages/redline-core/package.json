@@ -6,6 +6,9 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "pdfjs-dist": "^5.4.149",
     "mammoth": "^1.11.0",

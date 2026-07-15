@@ -17,7 +17,10 @@ export default function PdfViewer({ bytes, activeUnitId, onUnitsResolved, render
     (async () => {
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default as string;
+        // 用标准 ESM `new URL(..., import.meta.url)` 取 worker 地址，不用 Vite 专属的 `?url`
+        // 后缀语法——Vite/Rollup/大多数现代打包器都认这个写法，redline-core 不用为了这一行
+        // 绑死某个打包器，纯 tsc 独立 typecheck 也能过。
+        const workerUrl = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).href;
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
         const doc = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
         if (cancelled) return;
