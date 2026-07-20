@@ -1,5 +1,7 @@
 # Redline
 
+**简体中文** · [English](./README.en.md)
+
 **面向 AI 时代的万能文档预览标记层。**
 
 打开任意文档/图片不需要装原软件（Office、WPS、AutoCAD、Photoshop……），人在上面圈选、画箭头、写批注，AI agent（Claude Code、Codex、Hermes、OpenClaw……任何东西）读懂这些标注去改真正的源文件。**Redline 自己从不写回源文件**——它只负责"看见 + 标记 + 转发"，改文件是 agent 自己的事。
