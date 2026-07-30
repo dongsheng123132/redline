@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Redline CLI — AI 文档协作的安全动作核心。
+"""⚠️ 已废弃 —— 请改用 `redline.exe`（crates/redline-cli）。
+
+这是 Rust 动作核心之前的第一版 CLI。它和 TS 渲染层各自实现了一遍文档解析，
+正是本项目要消灭的那种漂移；而且它要求目标机器装了 Python。
+功能已全部迁进 crates/redline-core，本文件仅供对照，新代码不要再引用。
+
+原始说明：Redline CLI — AI 文档协作的安全动作核心。
 
 默认只读：inspect / diff 只输出 JSON。
 apply 只支持 .docx 的唯一单文本节点替换，写入原生 Word Track Changes，

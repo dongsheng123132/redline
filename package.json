@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "description": "Redline —— 面向 AI 时代的万能文档预览标记层。打开任意文档/图片不需要装原软件，人在上面圈选标注，AI agent 据此去改真正的源文件。Redline 自己从不写回源文件。",
   "license": "Apache-2.0",
-  "bin": {
-    "redline": "./bin/redline.py"
-  },
   "scripts": {
-    "build": "pnpm -r typecheck",
-    "cli": "python ./bin/redline.py"
+    "build": "cargo build --release",
+    "test": "cargo test --workspace",
+    "check:formats": "node scripts/check-format-parity.mjs",
+    "desktop:dev": "pnpm --filter redline-desktop tauri dev",
+    "desktop:build": "pnpm --filter redline-desktop tauri build"
   }
 }
