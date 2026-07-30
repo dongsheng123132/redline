@@ -17,6 +17,23 @@
 - ✅ 轻量 SVG 标注层（框/箭头/画笔/批注），标注坐标是分数坐标（0~1），跟窗口缩放无关
 - ⏳ `packages/redline-mcp`：把同一套内核包成 MCP Server，让外部 agent（不经过某个具体宿主 app）也能直接调用——下一步
 
+## 无 GUI CLI（v0.1）
+
+`bin/redline.py`（Windows 可直接执行 `bin\\redline.cmd`）是同一项目的无 GUI 安全动作入口；它不依赖 Node 或 Office：
+
+- `inspect`：本地解析 `.docx/.pdf/.xlsx/.pptx`，输出供 AI 消费的结构化快照；
+- `diff`：在两个快照之间输出结构化差异；
+- `apply`：仅处理 `.docx`，只接受唯一命中的单文本节点替换，**输出新文件**并写入原生 Word Track Changes；绝不覆盖输入原件；
+- `verify`：检查本地文件是否可被解析。
+
+```powershell
+.\bin\redline.cmd inspect .\方案.docx --out .\方案.snapshot.json
+.\bin\redline.cmd diff .\方案.docx .\方案-修订.docx --out .\方案.diff.json
+.\bin\redline.cmd apply .\方案.docx .\patch.json .\方案-待审.docx --author "Codex" --audit .\方案.audit.json
+```
+
+`patch.json` 只允许显式 `replace_text` 指令。人或 AI 先看 `inspect/diff`，再人工确认 `apply`；最终由 Word/WPS 接受或拒绝修订。旧版 `.doc` 不伪装成“无损可编辑”——必须先转换到 `.docx`。
+
 ## 架构
 
 ```
