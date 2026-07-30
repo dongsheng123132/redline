@@ -12,6 +12,7 @@
 //! ```
 
 pub mod action;
+pub mod agent;
 pub mod apply;
 pub mod archive;
 pub mod diff;
@@ -49,6 +50,8 @@ pub const ACTIONS: &[(&str, &str)] = &[
     (action::id::FORMATS, "输出格式注册表全文（只读）"),
     (action::id::ARCHIVE_LIST, "列出压缩包条目（只读）"),
     (action::id::ARCHIVE_EXTRACT, "解包到目标目录（只写目标目录）"),
+    (action::id::AGENT_CATALOG, "可用 AI agent 清单及安装状态（只读）"),
+    (action::id::AGENT_DISPATCH, "把标注派给 AI agent，agent 写新文件（不动源文件）"),
 ];
 
 /// 通用动作入口：给 MCP / Tauri command 这类「按名字调」的调用方用。
@@ -96,6 +99,27 @@ fn run(action_id: &str, params: &Value) -> Result<Value> {
             Ok(json!({ "written": written.len(), "files": written }))
         }
 
+        action::id::AGENT_CATALOG => Ok(agent::catalog()),
+
+        action::id::AGENT_DISPATCH => {
+            let annotations: Vec<agent::Annotation> = params
+                .get("annotations")
+                .map(|value| parse_annotations(value))
+                .transpose()?
+                .unwrap_or_default();
+            let report = agent::dispatch(agent::DispatchRequest {
+                agent: str_param(params, "agent")?,
+                source: str_param(params, "source")?,
+                output: str_param(params, "output")?,
+                annotations,
+                instruction: params.get("instruction").and_then(Value::as_str).map(str::to_string),
+                cwd: params.get("cwd").and_then(Value::as_str).map(str::to_string),
+                timeout_secs: params.get("timeoutSecs").and_then(Value::as_u64).unwrap_or(0),
+                dry_run: params.get("dryRun").and_then(Value::as_bool).unwrap_or(false),
+            })?;
+            Ok(serde_json::to_value(report)?)
+        }
+
         action::id::APPLY => {
             let patch: apply::Patch = serde_json::from_value(
                 params
@@ -123,6 +147,27 @@ fn run(action_id: &str, params: &Value) -> Result<Value> {
             "known": ACTIONS.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
         }))),
     }
+}
+
+/// 标注可以只给 `{unitId, note}`，正文由核心从快照里补 —— 界面不必自己去读文档。
+fn parse_annotations(value: &Value) -> Result<Vec<agent::Annotation>> {
+    let items = value
+        .as_array()
+        .ok_or_else(|| RedlineError::input("bad_annotations", "annotations 必须是数组"))?;
+    items
+        .iter()
+        .map(|item| {
+            let note = item
+                .get("note")
+                .and_then(Value::as_str)
+                .ok_or_else(|| RedlineError::input("bad_annotations", "每条标注都要有 note"))?;
+            Ok(agent::Annotation {
+                unit_id: item.get("unitId").and_then(Value::as_str).map(str::to_string),
+                note: note.to_string(),
+                unit_text: item.get("unitText").and_then(Value::as_str).map(str::to_string),
+            })
+        })
+        .collect()
 }
 
 fn str_param<'a>(params: &'a Value, name: &str) -> Result<&'a str> {

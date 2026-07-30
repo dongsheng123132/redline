@@ -21,6 +21,7 @@ use crate::paths::display;
 /// 单个压缩包内条目。`format` 是按包内文件名判定的 Redline 格式 id ——
 /// 递归预览（点进压缩包直接看里面的 docx）靠它。
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArchiveEntry {
     pub path: String,
     pub bytes: u64,

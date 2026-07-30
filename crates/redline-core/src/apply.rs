@@ -42,6 +42,7 @@ pub struct PatchChange {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppliedChange {
     pub index: usize,
     pub op: String,
@@ -52,6 +53,7 @@ pub struct AppliedChange {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Audit {
     pub input: FileRef,
     pub output: FileRef,

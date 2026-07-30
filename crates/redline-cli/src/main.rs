@@ -87,6 +87,36 @@ enum Command {
         force: bool,
     },
 
+    /// 列出可用的 AI agent 及其安装状态（只读）
+    Agents,
+
+    /// 把标注派给 AI agent 去改，agent 写新文件，源文件永远不动
+    Send {
+        /// 源文件（只读）
+        file: String,
+        /// agent id，用 `redline agents` 看有哪些
+        #[arg(long)]
+        agent: String,
+        /// 输出路径，必须不同于源文件
+        #[arg(long)]
+        output: String,
+        /// 一条标注，格式 `unit:id=批注`，例如 --note "paragraph:2=改得更正式"。可重复
+        #[arg(long = "note", value_name = "UNIT=NOTE")]
+        notes: Vec<String>,
+        /// 不针对具体单元的整体要求
+        #[arg(long)]
+        instruction: Option<String>,
+        /// agent 的工作目录，默认是源文件所在目录
+        #[arg(long)]
+        cwd: Option<String>,
+        /// 超时秒数，0 表示用默认值 600
+        #[arg(long, default_value_t = 0)]
+        timeout: u64,
+        /// 只打印将要执行的命令和提示词，不真的跑
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// 通用逃生口：按 action id 直接调核心，跟 MCP 走同一入口
     Call {
         /// 动作 id，例如 document.inspect
@@ -168,6 +198,31 @@ fn build_request(command: &Command) -> Result<(&'static str, Value, Option<Strin
                     "force": force,
                 }),
                 audit.clone(),
+            )
+        }
+        Command::Agents => (action_id::AGENT_CATALOG, json!({}), None),
+        Command::Send { file, agent, output, notes, instruction, cwd, timeout, dry_run } => {
+            let annotations = notes
+                .iter()
+                .map(|raw| match raw.split_once('=') {
+                    Some((unit, note)) => Ok(json!({ "unitId": unit.trim(), "note": note.trim() })),
+                    // 没写 unit 就当成不锚定的整体批注，别悄悄丢掉
+                    None => Ok(json!({ "note": raw.trim() })),
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            (
+                action_id::AGENT_DISPATCH,
+                json!({
+                    "agent": agent,
+                    "source": file,
+                    "output": output,
+                    "annotations": annotations,
+                    "instruction": instruction,
+                    "cwd": cwd,
+                    "timeoutSecs": timeout,
+                    "dryRun": dry_run,
+                }),
+                None,
             )
         }
         Command::Call { action, params } => {
@@ -302,6 +357,52 @@ fn print_human(envelope: &Value) {
         }
         action_id::ARCHIVE_EXTRACT => {
             println!("解出 {} 个文件", envelope["written"]);
+        }
+        action_id::AGENT_CATALOG => {
+            for agent in envelope["agents"].as_array().unwrap_or(&vec![]) {
+                let installed = if agent["installed"] == true { "已安装" } else { "未安装" };
+                println!(
+                    "{:<10} {:<14} {}\n           权限：{}",
+                    agent["id"].as_str().unwrap_or("?"),
+                    agent["label"].as_str().unwrap_or("?"),
+                    installed,
+                    agent["permissionNote"].as_str().unwrap_or(""),
+                );
+            }
+        }
+        action_id::AGENT_DISPATCH => {
+            println!("agent：{}（{}）", envelope["label"].as_str().unwrap_or("?"), envelope["agent"].as_str().unwrap_or("?"));
+            println!("权限：{}", envelope["permissionNote"].as_str().unwrap_or(""));
+            println!("工作目录：{}", envelope["cwd"].as_str().unwrap_or(""));
+            let command = envelope["command"]
+                .as_array()
+                .map(|parts| {
+                    parts
+                        .iter()
+                        .filter_map(Value::as_str)
+                        // 提示词很长，命令行里只提示一下，完整内容在 prompt 字段
+                        .map(|part| if part.len() > 60 { "<提示词，见 --json 的 prompt>".to_string() } else { part.to_string() })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
+                .unwrap_or_default();
+            println!("命令：{command}");
+            if envelope["exitCode"].is_null() && envelope["durationMs"].is_null() {
+                println!("（dry-run，什么都没跑）");
+                return;
+            }
+            println!(
+                "退出码 {}，耗时 {} ms{}",
+                envelope["exitCode"],
+                envelope["durationMs"],
+                if envelope["timedOut"] == true { "，已超时被终止" } else { "" }
+            );
+            // 成没成看产物在不在，不看退出码 —— agent 可以退 0 但什么都没写
+            if envelope["outputExists"] == true {
+                println!("✅ 产物已生成：{}", envelope["output"].as_str().unwrap_or("?"));
+            } else {
+                println!("❌ 产物没生成：{}", envelope["output"].as_str().unwrap_or("?"));
+            }
         }
         action_id::APPLY => {
             println!("已写出：{}", envelope["output"]["path"].as_str().unwrap_or("?"));

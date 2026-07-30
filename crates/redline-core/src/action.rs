@@ -29,8 +29,10 @@ pub mod id {
     pub const ARCHIVE_LIST: &str = "archive.list";
     /// 解包到指定目录。写磁盘，但只写目标目录，从不动原压缩包。
     pub const ARCHIVE_EXTRACT: &str = "archive.extract";
-    /// 把「标注 + 对应内容 + 源文件」派发给某个 AI agent。
+    /// 把「标注 + 对应内容 + 源文件」派发给某个 AI agent。agent 写新文件，不动源文件。
     pub const AGENT_DISPATCH: &str = "agent.dispatch";
+    /// 可用 agent 清单及其安装状态。只读。
+    pub const AGENT_CATALOG: &str = "agent.catalog";
 }
 
 /// 统一输出信封。

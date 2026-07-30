@@ -10,6 +10,7 @@ use crate::error::{RedlineError, Result};
 use crate::inspect::{self, Snapshot};
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Change {
     pub id: String,
     pub label: String,
@@ -20,6 +21,7 @@ pub struct Change {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffReport {
     pub format: String,
     pub before: inspect::SourceInfo,
