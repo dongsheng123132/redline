@@ -1,0 +1,17 @@
+[package]
+name = "redline-core"
+description = "Redline 动作核心 —— 无界面的业务动作唯一实现。CLI / GUI / MCP 都是它的调用方。"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+zip.workspace = true
+quick-xml.workspace = true
+sha2.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+lopdf.workspace = true
