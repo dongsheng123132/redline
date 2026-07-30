@@ -6,8 +6,12 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+name = "redline_cli"
+path = "src/lib.rs"
+
 [[bin]]
-name = "redline"
+name = "redline-cli"
 path = "src/main.rs"
 
 [dependencies]

@@ -143,7 +143,8 @@ pub const FORMATS: &[FormatSpec] = &[
         id: "archive-external",
         label: "压缩包（需外部解包器）",
         extensions: &["rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "iso", "cab"],
-        viewer: "ZipViewer",
+        // 还读不了，就别指一个读不了它的 viewer。等 7z 后端接上再换成 ZipViewer。
+        viewer: "UnsupportedViewer",
         tier: Tier::Free,
         caps: Caps::archive(ExtractBackend::External7z),
     },

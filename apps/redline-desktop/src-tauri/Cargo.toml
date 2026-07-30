@@ -1,0 +1,38 @@
+[package]
+name = "redline-desktop"
+description = "Redline 桌面壳 —— 动作核心的 GUI 面，也是发布的那个单 exe。"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "redline_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# 发布的单 exe 就叫 redline：没参数（或只给一个文件路径）开 GUI，
+# 带子命令则当 CLI 用。文件关联双击走前者，脚本调用走后者。
+[[bin]]
+name = "redline"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+redline-cli = { path = "../../../crates/redline-cli" }
+redline-core = { path = "../../../crates/redline-core" }
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+# 单 exe 是 GUI 子系统，从命令行调用时要自己把控制台接回来，否则 CLI 输出没地方去
+windows-sys = { version = "0.60", features = [
+  "Win32_Foundation",
+  "Win32_System_Console",
+  "Win32_Storage_FileSystem",
+  "Win32_Security",
+] }

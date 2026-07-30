@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/redline-core", "crates/redline-cli"]
+members = ["crates/redline-core", "crates/redline-cli", "apps/redline-desktop/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"

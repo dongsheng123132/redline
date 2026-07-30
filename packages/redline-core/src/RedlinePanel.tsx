@@ -4,7 +4,7 @@
  * opencodex 的 FilesPanel 挂这个组件，以后任何宿主也是挂这一个组件，不用重新接线。
  */
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import type { RedlineDocument, RedlineUnit } from "./document-model";
+import type { RedlineAnnotation, RedlineDocument, RedlineUnit } from "./document-model";
 import type { RedlineHost } from "./host-adapter";
 import { detectFormat, loadViewer } from "./viewers/registry";
 import { AnnotationLayer } from "./annotation/AnnotationLayer";
@@ -17,9 +17,27 @@ export interface RedlinePanelProps {
   path: string;
   /** 展示/发给 agent 时用的文件名（一般就是 path 的 basename，交由调用方决定怎么截）。 */
   fileName: string;
+  /**
+   * 标注变化时上抛给宿主。
+   *
+   * 三栏布局的宿主（左看原文、中选 agent 派发、右看产物）要在面板外面用这些标注。
+   * 不给这个口子，宿主就只能自己再实现一遍标注状态 —— 那就成了第二份实现。
+   */
+  onAnnotationsChange?: (annotations: RedlineAnnotation[], doc: RedlineDocument | null) => void;
+  /** 隐藏面板自带的「发给终端 Agent」按钮 —— 三栏布局里派发按钮在中间那栏。 */
+  hideSendButton?: boolean;
+  /** 只读预览模式：不画标注层。右栏看 agent 产物时用。 */
+  readOnly?: boolean;
 }
 
-export function RedlinePanel({ host, path, fileName }: RedlinePanelProps) {
+export function RedlinePanel({
+  host,
+  path,
+  fileName,
+  onAnnotationsChange,
+  hideSendButton,
+  readOnly,
+}: RedlinePanelProps) {
   const format = useMemo(() => detectFormat(fileName), [fileName]);
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [doc, setDoc] = useState<RedlineDocument | null>(null);
@@ -57,16 +75,21 @@ export function RedlinePanel({ host, path, fileName }: RedlinePanelProps) {
 
   const Viewer = useMemo(() => loadViewer(format), [format]);
 
+  useEffect(() => {
+    onAnnotationsChange?.(annotations, doc);
+  }, [annotations, doc, onAnnotationsChange]);
+
   const renderOverlay = useCallback(
-    (unitId: string) => (
-      <AnnotationLayer
-        unitId={unitId}
-        annotations={annotations.filter((a) => a.unitId === unitId)}
-        onAdd={addAnnotation}
-        onRemove={removeAnnotation}
-      />
-    ),
-    [annotations, addAnnotation, removeAnnotation],
+    (unitId: string) =>
+      readOnly ? null : (
+        <AnnotationLayer
+          unitId={unitId}
+          annotations={annotations.filter((a) => a.unitId === unitId)}
+          onAdd={addAnnotation}
+          onRemove={removeAnnotation}
+        />
+      ),
+    [annotations, addAnnotation, removeAnnotation, readOnly],
   );
 
   const openExternal = host.openExternal ? () => host.openExternal!(path) : undefined;
@@ -95,7 +118,7 @@ export function RedlinePanel({ host, path, fileName }: RedlinePanelProps) {
           openExternal={openExternal}
         />
       </Suspense>
-      {text && host.sendToAgent && (
+      {text && host.sendToAgent && !hideSendButton && (
         <div className="shrink-0 border-t border-white/[0.06] p-2">
           <button
             onClick={() => void host.sendToAgent!(text)}
