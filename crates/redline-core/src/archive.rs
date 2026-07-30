@@ -16,6 +16,7 @@ use serde_json::{json, Value};
 use crate::error::{RedlineError, Result};
 use crate::format::{self, ExtractBackend, FormatSpec};
 use crate::inspect::Unit;
+use crate::paths::display;
 
 /// 单个压缩包内条目。`format` 是按包内文件名判定的 Redline 格式 id ——
 /// 递归预览（点进压缩包直接看里面的 docx）靠它。
@@ -65,6 +66,10 @@ fn list_native(source: &Path) -> Result<Vec<ArchiveEntry>> {
 
 /// 解包到目标目录。返回实际写出的文件路径。
 ///
+/// **两趟**：先把全部条目路径和覆盖冲突验一遍，一条不合格就整包拒绝；验完才动手写。
+/// 单趟边验边写会在遇到恶意条目时留下半截产物 —— 用户看到目录里有东西，
+/// 会以为解包成功了。宁可一个字节都不写。
+///
 /// `dest` 不存在会创建；已存在的同名文件默认拒绝覆盖（`overwrite` 为 false 时）——
 /// 「绝不静默覆盖你没创建的东西」。
 pub fn extract(path: &str, dest: &str, overwrite: bool) -> Result<Vec<String>> {
@@ -77,40 +82,45 @@ pub fn extract(path: &str, dest: &str, overwrite: bool) -> Result<Vec<String>> {
         return Err(RedlineError::input("not_an_archive", format!("{} 不是压缩包。", source.display())));
     }
 
-    let dest_root = PathBuf::from(dest);
-    let dest_root = if dest_root.is_absolute() { dest_root } else { std::env::current_dir()?.join(dest_root) };
-    std::fs::create_dir_all(&dest_root)?;
-    // 拿规范化后的真实根目录再比对，防止 dest 本身是个软链接绕过校验
-    let dest_root = std::fs::canonicalize(&dest_root)?;
-
     let file = std::fs::File::open(&source)?;
     let mut archive = zip::ZipArchive::new(file)?;
-    let mut written = Vec::new();
 
+    // ---- 第一趟：只校验，不碰磁盘 ----
+    let dest_root = PathBuf::from(dest);
+    let dest_root = if dest_root.is_absolute() { dest_root } else { std::env::current_dir()?.join(dest_root) };
+    // 目标目录还不存在，canonicalize 不可用；先字面量清掉 ./ 和 ../，免得原样吐给用户
+    let dest_root = crate::paths::normalize(dest_root);
+    let mut planned: Vec<(usize, PathBuf, bool)> = Vec::with_capacity(archive.len());
     for index in 0..archive.len() {
-        let mut item = archive.by_index(index)?;
+        let item = archive.by_index(index)?;
         let name = item.name().to_string();
         let relative = safe_relative_path(&name)?;
         let target = dest_root.join(&relative);
+        if !item.is_dir() && target.exists() && !overwrite {
+            return Err(RedlineError::refused(
+                "would_overwrite",
+                format!("目标已存在：{}。确认要覆盖请加 --overwrite。", display(&target)),
+            )
+            .with_details(json!({ "target": display(&target), "entry": name })));
+        }
+        planned.push((index, target, item.is_dir()));
+    }
 
-        if item.is_dir() {
+    // ---- 第二趟：全部合格了才写 ----
+    std::fs::create_dir_all(&dest_root)?;
+    let mut written = Vec::with_capacity(planned.len());
+    for (index, target, is_dir) in planned {
+        if is_dir {
             std::fs::create_dir_all(&target)?;
             continue;
         }
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        if target.exists() && !overwrite {
-            return Err(RedlineError::refused(
-                "would_overwrite",
-                format!("目标已存在：{}。确认要覆盖请加 --overwrite。", target.display()),
-            )
-            .with_details(json!({ "target": target.display().to_string(), "entry": name })));
-        }
         let mut data = Vec::new();
-        item.read_to_end(&mut data)?;
+        archive.by_index(index)?.read_to_end(&mut data)?;
         std::fs::write(&target, data)?;
-        written.push(target.display().to_string());
+        written.push(display(&target));
     }
     Ok(written)
 }

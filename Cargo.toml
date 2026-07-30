@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/redline-core"]
+members = ["crates/redline-core", "crates/redline-cli"]
 
 [workspace.package]
 version = "0.1.0"

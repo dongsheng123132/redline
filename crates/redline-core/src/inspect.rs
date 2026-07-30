@@ -75,8 +75,9 @@ pub fn resolve(path: &str) -> Result<PathBuf> {
         return Err(RedlineError::input("file_not_found", format!("文件不存在：{}", abs.display()))
             .with_details(json!({ "path": abs.display().to_string() })));
     }
-    Ok(std::fs::canonicalize(&abs).unwrap_or(abs))
+    Ok(std::fs::canonicalize(&abs).map(crate::paths::strip_verbatim).unwrap_or(abs))
 }
+
 
 /// 解析一个本地文件成快照。这是 `document.inspect` 的全部实现。
 pub fn inspect(path: &str) -> Result<Snapshot> {

@@ -19,6 +19,7 @@ pub mod error;
 pub mod format;
 pub mod inspect;
 pub mod ooxml;
+pub mod paths;
 
 use serde_json::{json, Value};
 

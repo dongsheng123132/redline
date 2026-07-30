@@ -1,0 +1,16 @@
+[package]
+name = "redline-cli"
+description = "Redline 的 CLI 面 —— 动作核心的调用方之一，不含任何业务逻辑。"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "redline"
+path = "src/main.rs"
+
+[dependencies]
+redline-core = { path = "../redline-core" }
+clap.workspace = true
+serde_json.workspace = true
