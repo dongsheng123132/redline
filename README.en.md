@@ -97,6 +97,7 @@ Registered Actions currently include:
 | Open-source and commercial boundaries | [Open source & commercialization (Chinese)](./docs/开源与商业化.md) |
 | Feature-to-code roadmap | [Feature and code plan (Chinese)](./docs/功能与代码规划.md) |
 | AI-ready visual and semantic mapping for traditional files | [ShadowDoc protocol (Chinese)](./docs/影文档协议.md) |
+| ShadowDoc open-specification and ecosystem path | [ShadowDoc open-spec plan (Chinese)](./docs/ShadowDoc开源规范与生态计划.md) |
 | Prioritized implementation plan | [Development plan (Chinese)](./docs/开发计划.md) |
 | Distribution and communication | [Go-to-market plan (Chinese)](./docs/传播计划.md) |
 | Architecture | [Architecture (Chinese)](./docs/架构.md) |
