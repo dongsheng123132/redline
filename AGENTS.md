@@ -7,6 +7,9 @@
 
 **Redline —— 面向 AI 时代的万能文档预览标记层。**
 
+对外工作品牌暂定为 **叠象 Stelora · 万能文件工作台**；在商标、商号和域名正式核验前，
+仓库、crate、CLI 和 Action ID 继续使用 Redline。品牌与品类决策见 `docs/产品战略.md`。
+
 打开任意文档/图片/压缩包不需要装原软件（Office、WPS、AutoCAD、Photoshop、WinRAR），
 人在上面圈选标注，选一个 AI agent 据此去改，产出**新文件**放在右边逐处对照。
 
@@ -86,7 +89,8 @@ apps/redline-desktop/
   src/host.ts                     RedlineHost 的 Tauri 实现（宿主能力，非业务）
 packages/redline-core/            渲染层（TS）：viewer + SVG 标注层
 scripts/check-format-parity.mjs   两份格式表的漂移检查
-docs/                             架构 / 动作契约 / 开发计划 / 商业模型 / 决策记录
+docs/                             产品战略 / 开源商业化 / 功能代码规划 / 传播计划
+                                  架构 / 动作契约 / 开发计划 / 商业模型 / 决策记录
 bin/redline.py                    ⚠️ 已废弃，别引用，别改
 ```
 

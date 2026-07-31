@@ -2,39 +2,118 @@
 
 [简体中文](./README.md) · **English**
 
-**A universal document preview & markup layer, built for the age of AI.**
+> Working public brand: **Stelora — Universal File Workspace** (`叠象` in Chinese).
+> The brand is pending formal trademark, company-name, and domain clearance. The repository,
+> CLI, crates, and Action IDs remain Redline until that work is complete.
 
-Open any document or image without installing the original software (Office, WPS, AutoCAD, Photoshop…). A human circles, draws arrows, and writes notes on top; an AI agent (Claude Code, Codex, Hermes, OpenClaw… anything) reads those annotations and edits the real source file. **Redline never writes back to the source file itself** — it only "sees + marks + forwards." Actually editing the file is the agent's job.
+**A model-neutral universal file workspace for the age of AI.**
 
-Comparable to [Cowart](https://github.com/zhongerxin/cowart) (an image-canvas annotation tool for Codex), but generalized to any document format and **host-agnostic** (not tied to one specific agent or host app).
+Open documents, images, archives, design files, models, code, and folders without first installing
+their original applications. Mark the exact area that needs work, choose an AI agent such as Claude
+Code, Codex, or a local model, and compare the newly generated file on the right.
 
-## Status
+Redline never silently writes back to the source file. Every result is a new file, and the planned
+version graph turns each AI run into an immutable, auditable branch.
 
-`packages/redline-core` is the only package, still in incubation. Its first real host is [OpenCodex](https://github.com/dongsheng123132/opencodex), which references this repo via a `link:` dependency rather than vendoring it in.
+> WinRAR's universal opening + Git's version branches + interchangeable AI agents.
 
-- ✅ Universal document model + host-adapter interface (`RedlineHost`; the core touches no platform API)
-- ✅ Lazy-loaded viewers for 11 formats: image / HTML / text / PDF / Word / Excel / PPTX outline / ZIP / PSD / 3D (stl·obj·gltf·glb) / DXF
-- ✅ Lightweight SVG annotation layer (box / arrow / pen / note); annotation coordinates are fractional (0–1), independent of window zoom
-- ⏳ `packages/redline-mcp`: wrap the same core as an MCP Server so external agents can call it directly (without going through a specific host app) — next up
+## Product direction
+
+The current three-column workspace represents one revision round:
+
+```text
+Version A → annotations + agent → Version B → another agent → Version C
+     └──────────────────────────→ alternative Version D
+```
+
+The next stage connects these rounds on an infinite canvas. Users can continue to the right, move
+back to any earlier version, or create a new branch with another agent. Parent versions, outputs,
+annotations, agent identity, permissions, hashes, and diffs remain available.
+
+Claude and Codex are engines, not platform dependencies. Redline owns the operating-system entry
+point, format handling, work orders, immutable versions, comparison, and audit trail.
+
+## Current status
+
+- Rust action core: format registry, inspect, diff, docx Track Changes, verify, archive, agent dispatch
+- CLI with stable JSON envelopes and classified exit codes
+- Tauri desktop app: one Windows executable, NSIS installer, three-column workspace
+- Lazy viewers for images, HTML, text, PDF, docx, xlsx, pptx outline, ZIP, PSD, 3D, and DXF
+- SVG annotations using normalized coordinates
+- End-to-end Codex dispatch verified without changing the source file
+- zip-slip rejection verified with no partial extraction residue
+
+Next priorities:
+
+1. File associations and Windows context menus
+2. RAR/7z extraction through an external 7z process
+3. A trusted signed release chain
+4. `redline-mcp` and portable WorkOrders
+5. Immutable version graph and infinite canvas
+6. Optional metered cloud AI and, later, enterprise controls
 
 ## Architecture
 
-```
-redline-core                  host-agnostic universal core (zero Tauri/Electron deps)
-├── document-model.ts         unified abstraction: {docId, units:[{page/layer/sheet…}], text, bbox}
-├── host-adapter.ts           RedlineHost interface — read bytes / save annotations / send to agent /
-│                             open external program; each host implements it once, core code
-│                             never changes across hosts
-├── viewers/                  extension-based lazy-loaded viewer registry
-└── annotation/              SVG annotation layer + persistence hook
+```text
+GUI ─┐
+CLI ─┼── redline_core::dispatch(action_id, params) ── unified envelope
+MCP ─┘                         planned
 ```
 
-Each host only implements the `RedlineHost` interface, then mounts `<RedlinePanel host={...} path={...} fileName={...} />`. OpenCodex's implementation lives in its own repo at `src/opencodex/redline-host-tauri.ts` and can serve as a reference.
+Business behavior is implemented once in `crates/redline-core`. GUI, CLI, and MCP are callers.
+The GUI may render and provide host capabilities; it must not reimplement format detection, diff,
+overwrite policy, or archive safety.
+
+Registered Actions currently include:
+
+- `document.inspect`
+- `document.diff`
+- `document.apply-track-changes`
+- `document.verify`
+- `document.formats`
+- `archive.list`
+- `archive.extract`
+- `agent.catalog`
+- `agent.dispatch`
+
+## Safety contract
+
+- Output paths must differ from input paths.
+- Existing outputs are not overwritten without explicit permission.
+- A patch is rejected if the source hash has changed.
+- Ambiguous replacements are rejected rather than guessed.
+- Unsafe archive paths reject the entire extraction before anything is written.
+- Legacy `.doc`, `.xls`, and `.ppt` binaries are rejected instead of misparsed.
+- Agent success is determined by the expected output file, not only by process exit code.
+
+## Documentation
+
+| Topic | Document |
+|---|---|
+| Brand, category, users, and competitive strategy | [Product strategy (Chinese)](./docs/产品战略.md) |
+| Revenue model | [Business model (Chinese)](./docs/商业模型.md) |
+| Open-source and commercial boundaries | [Open source & commercialization (Chinese)](./docs/开源与商业化.md) |
+| Feature-to-code roadmap | [Feature and code plan (Chinese)](./docs/功能与代码规划.md) |
+| Prioritized implementation plan | [Development plan (Chinese)](./docs/开发计划.md) |
+| Distribution and communication | [Go-to-market plan (Chinese)](./docs/传播计划.md) |
+| Architecture | [Architecture (Chinese)](./docs/架构.md) |
+| Action contracts | [Action contracts (Chinese)](./docs/动作契约.md) |
+| Decision log | [Decision log (Chinese)](./docs/决策记录.md) |
+
+## Development
+
+```bash
+cargo test --workspace
+node scripts/check-format-parity.mjs
+pnpm install
+pnpm --filter redline-desktop tauri dev
+pnpm --filter redline-desktop tauri build
+cd apps/redline-desktop && npx tsc --noEmit
+```
 
 ## License
 
-Apache-2.0 — includes a patent grant, so other agent projects or commercial products can embed it with confidence.
-
-## Why not ship it as a standalone app
-
-We went through this decision: initially we wanted a standalone desktop app + MCP Server, then converged on "no shell needed — first prove it can be used by a real host." A standalone app is a matter for later, not for now.
+Apache-2.0. The action core, CLI, planned MCP server, reusable viewers, and desktop app remain open.
+Official hosted AI, billing, abuse prevention, and enterprise policy/audit control planes are
+separate services. The code license does not grant rights to impersonate the official brand,
+signatures, domains, or update channels.
