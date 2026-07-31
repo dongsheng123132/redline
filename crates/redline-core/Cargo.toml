@@ -1,10 +1,15 @@
 [package]
 name = "redline-core"
-description = "Redline 动作核心 —— 无界面的业务动作唯一实现。CLI / GUI / MCP 都是它的调用方。"
+description = "Redline 动作核心 —— 无界面的业务动作唯一实现。打开/解析/对比任意文档与压缩包、把标注派给 AI agent，从不写回源文件。CLI / GUI / MCP 都是它的调用方。"
+# 无界面是这个 crate 的核心属性，由 scripts/check-core-purity.mjs 守着：
+# 依赖树里出现任何 GUI/窗口/浏览器内核的 crate 都会让 CI 挂。
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["document", "docx", "annotation", "ai-agent", "archive"]
+categories = ["parser-implementations", "filesystem", "command-line-utilities"]
 
 [dependencies]
 serde.workspace = true

@@ -5,6 +5,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["document", "docx", "cli", "ai-agent", "archive"]
+categories = ["command-line-utilities", "parser-implementations"]
 
 [lib]
 name = "redline_cli"
@@ -15,6 +18,10 @@ name = "redline-cli"
 path = "src/main.rs"
 
 [dependencies]
+# 刻意不写 version：`redline-core` 这个名字在 crates.io 已被一个无关项目占用
+# （0.1.1，2026-03 仍在维护）。一旦加上 version，`cargo publish` 会把这条解析到
+# 那个陌生 crate 上去，报一堆「redline_core::dispatch 不存在」的鬼错误。
+# 等发布名定下来（见 docs/决策记录.md #22）再补。
 redline-core = { path = "../redline-core" }
 clap.workspace = true
 serde_json.workspace = true

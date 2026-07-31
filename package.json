@@ -9,6 +9,8 @@
     "test": "cargo test --workspace",
     "check:formats": "node scripts/check-format-parity.mjs",
     "desktop:dev": "pnpm --filter redline-desktop tauri dev",
-    "desktop:build": "pnpm --filter redline-desktop tauri build"
+    "desktop:build": "pnpm --filter redline-desktop tauri build",
+    "check:core": "node scripts/check-core-purity.mjs",
+    "check": "node scripts/check-format-parity.mjs && node scripts/check-core-purity.mjs && cargo test --workspace"
   }
 }

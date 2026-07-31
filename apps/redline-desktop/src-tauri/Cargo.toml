@@ -5,6 +5,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# 这是应用不是库，不往 crates.io 发
+publish = false
 
 [lib]
 name = "redline_desktop_lib"
