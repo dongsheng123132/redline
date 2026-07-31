@@ -8,9 +8,11 @@
     "build": "cargo build --release",
     "test": "cargo test --workspace",
     "check:formats": "node scripts/check-format-parity.mjs",
+    "check:shadowdoc": "node --test scripts/shadowdoc-validate.test.mjs",
+    "benchmark:shadowdoc": "cargo run --release -p redline-core --example shadowdoc_benchmark",
     "desktop:dev": "pnpm --filter redline-desktop tauri dev",
     "desktop:build": "pnpm --filter redline-desktop tauri build",
     "check:core": "node scripts/check-core-purity.mjs",
-    "check": "node scripts/check-format-parity.mjs && node scripts/check-core-purity.mjs && cargo test --workspace"
+    "check": "node scripts/check-format-parity.mjs && node scripts/check-core-purity.mjs && node --test scripts/shadowdoc-validate.test.mjs && cargo test --workspace"
   }
 }

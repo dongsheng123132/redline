@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:shadowdoc:schema:core:0.1",
+  "title": "ShadowDoc Core Profile 0.1",
+  "description": "A deterministic semantic projection bound to an immutable source artifact.",
+  "type": "object",
+  "required": [
+    "shadow",
+    "format",
+    "source",
+    "summary",
+    "units"
+  ],
+  "properties": {
+    "ok": {
+      "const": true
+    },
+    "version": {
+      "type": "string"
+    },
+    "tool": {
+      "type": "string"
+    },
+    "action_id": {
+      "const": "document.inspect"
+    },
+    "shadow": {
+      "$ref": "#/$defs/shadowDescriptor"
+    },
+    "format": {
+      "enum": [
+        "docx",
+        "xlsx",
+        "pptx-outline",
+        "pdf",
+        "text",
+        "html",
+        "archive",
+        "archive-external"
+      ]
+    },
+    "source": {
+      "$ref": "#/$defs/sourceArtifact"
+    },
+    "summary": {
+      "type": "object"
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unit"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "docx"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "shadow": {
+            "properties": {
+              "granularity": {
+                "const": "paragraph"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "xlsx"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "shadow": {
+            "properties": {
+              "granularity": {
+                "const": "sheet"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "pptx-outline"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "shadow": {
+            "properties": {
+              "granularity": {
+                "const": "slide"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "pdf"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "shadow": {
+            "properties": {
+              "granularity": {
+                "const": "page"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "enum": [
+              "text",
+              "html"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "shadow": {
+            "properties": {
+              "granularity": {
+                "const": "document"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "enum": [
+              "archive",
+              "archive-external"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "shadow": {
+            "properties": {
+              "granularity": {
+                "const": "entry"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "shadowDescriptor": {
+      "type": "object",
+      "required": [
+        "schema",
+        "schemaVersion",
+        "producer",
+        "profile",
+        "granularity",
+        "lossy",
+        "sourceSha256"
+      ],
+      "properties": {
+        "schema": {
+          "const": "redline.shadow-document"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "producer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile": {
+          "const": "semantic"
+        },
+        "granularity": {
+          "enum": [
+            "paragraph",
+            "sheet",
+            "slide",
+            "page",
+            "document",
+            "entry"
+          ]
+        },
+        "lossy": {
+          "type": "boolean"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": true
+    },
+    "sourceArtifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "extension",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extension": {
+          "type": "string"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": true
+    },
+    "unit": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "text",
+        "textSha256"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*:[1-9][0-9]*$"
+        },
+        "kind": {
+          "enum": [
+            "paragraph",
+            "sheet",
+            "slide",
+            "page",
+            "document",
+            "entry"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "textSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

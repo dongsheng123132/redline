@@ -1,0 +1,20 @@
+{
+  "shadow": {
+    "schema": "redline.shadow-document",
+    "schemaVersion": 1,
+    "producer": "example-producer/0.1.0",
+    "profile": "semantic",
+    "granularity": "document",
+    "lossy": true,
+    "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "format": "text",
+  "source": {
+    "path": "example.txt",
+    "extension": "txt",
+    "bytes": 0,
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "summary": {},
+  "units": []
+}

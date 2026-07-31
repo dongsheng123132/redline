@@ -1,0 +1,30 @@
+{
+  "shadow": {
+    "schema": "redline.shadow-document",
+    "schemaVersion": 1,
+    "producer": "example-producer/0.1.0",
+    "profile": "semantic",
+    "granularity": "document",
+    "lossy": true,
+    "sourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "format": "text",
+  "source": {
+    "path": "example.txt",
+    "extension": "txt",
+    "bytes": 0,
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "summary": {
+    "chars": 0
+  },
+  "units": [
+    {
+      "id": "document:1",
+      "kind": "document",
+      "label": "全文",
+      "text": "",
+      "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -28,22 +28,32 @@ ShadowDoc is a companion specification to
 
 ## Current material
 
+- [Normative Core 0.1 Working Draft](./SPEC.md)
+- [Core 0.1 JSON Schema](./schema/core.schema.json)
+- [Conformance fixtures](./conformance/manifest.json)
+- [Reference validator](../../scripts/shadowdoc-validate.mjs)
+- [First implementation report](../../docs/ShadowDoc实验报告-v0.1.md)
 - [ShadowDoc data model](../../docs/影文档协议.md)
 - [Open specification and ecosystem plan](../../docs/ShadowDoc开源规范与生态计划.md)
 - [Action and code plan](../../docs/功能与代码规划.md)
 - [Action contracts](../../docs/动作契约.md)
 
-## Planned incubation artifacts
+## Incubation status
 
-- normative `SPEC.md`;
-- JSON Schemas for Core, Annotation, Agent and Project profiles;
-- valid, invalid and security conformance fixtures;
-- a machine-readable validator;
-- an implementation-report template;
-- public RFCs for behavior-changing proposals.
+- Core Profile: implemented as a testable Working Draft;
+- Annotation, Agent and Project Profiles: planned;
+- security corpus beyond hash mismatch and stale-source refusal: planned;
+- implementation-report template and public RFC process: planned.
 
 The first reference implementation is Redline. A v1.0 release requires at least two independent
 implementations using the same public conformance suite.
+
+Run the current suite:
+
+```text
+node --test scripts/shadowdoc-validate.test.mjs
+cargo run --release -p redline-core --example shadowdoc_benchmark
+```
 
 ## Licensing status
 

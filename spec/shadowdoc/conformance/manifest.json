@@ -1,0 +1,29 @@
+{
+  "spec": "shadowdoc-core-0.1",
+  "fixtures": [
+    {
+      "file": "valid/minimal.json",
+      "valid": true
+    },
+    {
+      "file": "invalid/source-hash-mismatch.json",
+      "valid": false,
+      "code": "source_hash_mismatch"
+    },
+    {
+      "file": "invalid/unit-text-hash-mismatch.json",
+      "valid": false,
+      "code": "unit_hash_mismatch"
+    },
+    {
+      "file": "invalid/duplicate-unit-id.json",
+      "valid": false,
+      "code": "duplicate_unit_id"
+    },
+    {
+      "file": "invalid/granularity-mismatch.json",
+      "valid": false,
+      "code": "granularity_mismatch"
+    }
+  ]
+}

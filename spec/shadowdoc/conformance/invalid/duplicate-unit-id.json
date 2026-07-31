@@ -1,0 +1,35 @@
+{
+  "shadow": {
+    "schema": "redline.shadow-document",
+    "schemaVersion": 1,
+    "producer": "example-producer/0.1.0",
+    "profile": "semantic",
+    "granularity": "paragraph",
+    "lossy": true,
+    "sourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "format": "docx",
+  "source": {
+    "path": "example.docx",
+    "extension": "docx",
+    "bytes": 0,
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "summary": {},
+  "units": [
+    {
+      "id": "paragraph:1",
+      "kind": "paragraph",
+      "label": "段落 1",
+      "text": "",
+      "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "paragraph:1",
+      "kind": "paragraph",
+      "label": "段落 1（重复）",
+      "text": "",
+      "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "schema": "redline.shadowdoc-benchmark/0.1",
+  "recordedAt": "2026-07-31",
+  "baselineCommit": "ba8f53d",
+  "command": "cargo run --release -p redline-core --example shadowdoc_benchmark",
+  "environment": {
+    "os": "Microsoft Windows 11 Home",
+    "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+    "memoryGiB": 63.8,
+    "rustc": "1.88.0",
+    "profile": "release"
+  },
+  "repetitions": 10,
+  "contextMetric": "UTF-8 bytes of JSON-serialized units; selected window is target unit plus one neighbor on each side",
+  "scenarios": [
+    {
+      "name": "controlled-docx",
+      "format": "docx",
+      "corpus": "controlled generated corpus",
+      "sourceBytes": 920,
+      "units": 200,
+      "selectedUnitIds": [
+        "paragraph:100",
+        "paragraph:101",
+        "paragraph:102"
+      ],
+      "fullContextBytes": 47477,
+      "selectedContextBytes": 718,
+      "contextReductionPercent": 98.49,
+      "anchorDeterminismPercent": 100.0,
+      "inspectMedianMs": 1.089
+    },
+    {
+      "name": "controlled-xlsx",
+      "format": "xlsx",
+      "corpus": "controlled generated corpus",
+      "sourceBytes": 39769,
+      "units": 24,
+      "selectedUnitIds": [
+        "sheet:12",
+        "sheet:13",
+        "sheet:14"
+      ],
+      "fullContextBytes": 115083,
+      "selectedContextBytes": 14527,
+      "contextReductionPercent": 87.38,
+      "anchorDeterminismPercent": 100.0,
+      "inspectMedianMs": 4.872
+    },
+    {
+      "name": "controlled-pptx",
+      "format": "pptx-outline",
+      "corpus": "controlled generated corpus",
+      "sourceBytes": 13275,
+      "units": 40,
+      "selectedUnitIds": [
+        "slide:20",
+        "slide:21",
+        "slide:22"
+      ],
+      "fullContextBytes": 8294,
+      "selectedContextBytes": 625,
+      "contextReductionPercent": 92.46,
+      "anchorDeterminismPercent": 100.0,
+      "inspectMedianMs": 1.08
+    },
+    {
+      "name": "controlled-pdf",
+      "format": "pdf",
+      "corpus": "controlled generated corpus",
+      "sourceBytes": 12546,
+      "units": 40,
+      "selectedUnitIds": [
+        "page:20",
+        "page:21",
+        "page:22"
+      ],
+      "fullContextBytes": 7574,
+      "selectedContextBytes": 571,
+      "contextReductionPercent": 92.46,
+      "anchorDeterminismPercent": 100.0,
+      "inspectMedianMs": 1.629
+    },
+    {
+      "name": "repository-shadowdoc-markdown",
+      "format": "text",
+      "corpus": "real repository document",
+      "sourceBytes": 19808,
+      "units": 1,
+      "selectedUnitIds": [
+        "document:1"
+      ],
+      "fullContextBytes": 20657,
+      "selectedContextBytes": 20657,
+      "contextReductionPercent": 0.0,
+      "anchorDeterminismPercent": 100.0,
+      "inspectMedianMs": 0.225
+    }
+  ],
+  "safetyChecks": [
+    {
+      "name": "old ShadowDoc is refused after source bytes change",
+      "passed": true,
+      "expectedErrorCode": "stale_shadow",
+      "actualErrorCode": "stale_shadow"
+    }
+  ]
+}
