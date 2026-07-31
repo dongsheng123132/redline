@@ -1,0 +1,146 @@
+{
+  "schema": "redline.shadowdoc-round2-report/0.1",
+  "recordedAt": "2026-07-31",
+  "baselineCommit": "23186e0",
+  "environment": {
+    "os": "Microsoft Windows 11 Home",
+    "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+    "memoryGiB": 63.8,
+    "rustc": "1.88.0",
+    "node": "22.14.0",
+    "profile": "release"
+  },
+  "textSegmentation": {
+    "source": "docs/影文档协议.md",
+    "before": {
+      "units": 1,
+      "fullContextBytes": 20657,
+      "selectedContextBytes": 20657,
+      "contextReductionPercent": 0.0
+    },
+    "after": {
+      "sourceBytes": 19877,
+      "units": 122,
+      "fullContextBytes": 39769,
+      "selectedContextBytes": 649,
+      "contextReductionPercent": 98.37,
+      "anchorDeterminismPercent": 100.0,
+      "inspectMedianMs": 0.757
+    },
+    "repetitions": 10,
+    "selection": "middle unit plus one neighboring unit on each side"
+  },
+  "parserPk": {
+    "schema": "shadowdoc-pk-report/0.1",
+    "repetitions": 3,
+    "processModel": "fresh child process for every repetition; startup included",
+    "requiredTextMatch": "case-sensitive exact substring at the head and tail of each controlled document",
+    "adapters": {
+      "redline": "redline-core/0.1.0",
+      "markitdown": "0.1.7",
+      "docling": null
+    },
+    "cases": [
+      {
+        "id": "controlled-docx",
+        "redline": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": true,
+          "structuralUnits": 200,
+          "durationMedianMs": 22.958,
+          "durationMinMs": 21.638,
+          "durationMaxMs": 30.631
+        },
+        "markitdown": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": false,
+          "structuralUnits": 200,
+          "durationMedianMs": 1259.57,
+          "durationMinMs": 1219.614,
+          "durationMaxMs": 1265.105
+        },
+        "coldProcessMedianRatioMarkitdownOverRedline": 54.86
+      },
+      {
+        "id": "controlled-xlsx",
+        "redline": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": true,
+          "structuralUnits": 24,
+          "durationMedianMs": 30.696,
+          "durationMinMs": 27.75,
+          "durationMaxMs": 33.032
+        },
+        "markitdown": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": false,
+          "structuralUnits": 24,
+          "durationMedianMs": 1625.403,
+          "durationMinMs": 1592.385,
+          "durationMaxMs": 1648.292
+        },
+        "coldProcessMedianRatioMarkitdownOverRedline": 52.95
+      },
+      {
+        "id": "controlled-pptx",
+        "redline": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": true,
+          "structuralUnits": 40,
+          "durationMedianMs": 23.989,
+          "durationMinMs": 22.388,
+          "durationMaxMs": 25.645
+        },
+        "markitdown": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": false,
+          "structuralUnits": 40,
+          "durationMedianMs": 1169.418,
+          "durationMinMs": 1141.981,
+          "durationMaxMs": 1204.517
+        },
+        "coldProcessMedianRatioMarkitdownOverRedline": 48.75
+      },
+      {
+        "id": "controlled-pdf",
+        "redline": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": true,
+          "structuralUnits": 40,
+          "durationMedianMs": 24.77,
+          "durationMinMs": 21.325,
+          "durationMaxMs": 25.355
+        },
+        "markitdown": {
+          "requiredTextRecallPercent": 100.0,
+          "outputDeterministic": true,
+          "sourceHashBound": false,
+          "structuralUnits": 40,
+          "durationMedianMs": 1224.939,
+          "durationMinMs": 1167.597,
+          "durationMaxMs": 1225.479
+        },
+        "coldProcessMedianRatioMarkitdownOverRedline": 49.45
+      }
+    ],
+    "docling": {
+      "status": "not_run",
+      "reason": "pip install docling did not complete within the single 900-second limit; package metadata was absent after termination",
+      "interpretation": "environment preparation was incomplete; this is not a parser failure or quality result"
+    }
+  },
+  "limitations": [
+    "controlled documents contain simple text and do not measure complex layout, table topology, OCR, formulas or embedded media",
+    "required-text recall checks only two known strings per document",
+    "MarkItDown structural units are normalized blank-line blocks, not a native stable-anchor claim",
+    "cold-process duration includes runtime startup and must not be presented as a pure parser speed ratio",
+    "no human editing task, token billing, peak memory or annotation relocation was measured"
+  ]
+}

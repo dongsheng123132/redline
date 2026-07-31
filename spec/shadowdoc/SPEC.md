@@ -80,7 +80,10 @@ Unit order is significant. Given identical source bytes, producer version and pa
 producer MUST return the same ordered `(id, kind, textSha256)` sequence. This is the Core 0.1
 definition of deterministic anchoring.
 
-An empty `units` array is valid for an empty document or archive.
+An empty `units` array is valid for an empty document or archive. A `document` granularity does not
+require exactly one unit: text producers MAY emit ordered `document:1..N` blocks. If they do, the
+segmentation algorithm and size limit MUST be deterministic for the same producer version and
+parameters.
 
 ## 3. Consumption rules
 

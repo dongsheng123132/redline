@@ -341,7 +341,88 @@ fn pdf(path: &Path) -> Result<(Value, Vec<Unit>)> {
 fn plain(data: &[u8]) -> (Value, Vec<Unit>) {
     let text = String::from_utf8_lossy(data).to_string();
     let lines = text.lines().count();
-    (json!({ "lines": lines, "chars": text.chars().count() }), vec![Unit::new("document:1", "全文", text)])
+    let blocks = text_blocks(&text);
+    let units = blocks
+        .into_iter()
+        .enumerate()
+        .map(|(index, block)| Unit::new(format!("document:{}", index + 1), text_block_label(&block, index), block))
+        .collect::<Vec<_>>();
+    (
+        json!({
+            "lines": lines,
+            "chars": text.chars().count(),
+            "blocks": units.len(),
+            "maxBlockChars": TEXT_BLOCK_MAX_CHARS,
+        }),
+        units,
+    )
+}
+
+/// 文本和 Markdown 的确定性语义分块。
+///
+/// 空行是人的天然段落边界；没有空行的巨大 JSON/日志仍按字符上限切开，避免再次退化成
+/// “一个 unit 等于整个文件”。这里只决定 AI/标注锚点，viewer 不得复制这套算法。
+const TEXT_BLOCK_MAX_CHARS: usize = 4_000;
+
+fn text_blocks(text: &str) -> Vec<String> {
+    if text.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut blocks = Vec::new();
+    let mut paragraph = String::new();
+    for line in text.lines() {
+        if line.trim().is_empty() {
+            push_bounded_text(&mut blocks, paragraph.trim_end_matches(['\r', '\n']));
+            paragraph.clear();
+            continue;
+        }
+        if !paragraph.is_empty() {
+            paragraph.push('\n');
+        }
+        paragraph.push_str(line.trim_end_matches('\r'));
+    }
+    push_bounded_text(&mut blocks, paragraph.trim_end_matches(['\r', '\n']));
+
+    if blocks.is_empty() {
+        blocks.push(String::new());
+    }
+    blocks
+}
+
+fn push_bounded_text(blocks: &mut Vec<String>, text: &str) {
+    if text.is_empty() {
+        return;
+    }
+
+    let mut start = 0usize;
+    let mut chars = 0usize;
+    for (byte_index, _) in text.char_indices() {
+        if chars == TEXT_BLOCK_MAX_CHARS {
+            blocks.push(text[start..byte_index].to_string());
+            start = byte_index;
+            chars = 0;
+        }
+        chars += 1;
+    }
+    if start < text.len() {
+        blocks.push(text[start..].to_string());
+    }
+}
+
+fn text_block_label(block: &str, index: usize) -> String {
+    let heading = block
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|line| line.starts_with('#'))
+        .map(|line| line.trim_start_matches('#').trim())
+        .filter(|line| !line.is_empty())
+        .map(|line| line.chars().take(48).collect::<String>());
+    match heading {
+        Some(heading) => format!("文本块 {} · {heading}", index + 1),
+        None => format!("文本块 {}", index + 1),
+    }
 }
 
 #[cfg(test)]
@@ -379,5 +460,27 @@ mod tests {
         assert_eq!(first.kind, "paragraph");
         assert_eq!(first.text_sha256, second.text_sha256);
         assert_eq!(first.text_sha256.len(), 64);
+    }
+
+    #[test]
+    fn 文本按空行生成确定性块() {
+        let (summary, units) = plain("# 标题\n正文\n\n第二段\n\n## 结尾".as_bytes());
+        assert_eq!(summary["blocks"], 3);
+        assert_eq!(units.len(), 3);
+        assert_eq!(units[0].id, "document:1");
+        assert_eq!(units[0].kind, "document");
+        assert_eq!(units[0].label, "文本块 1 · 标题");
+        assert_eq!(units[0].text, "# 标题\n正文");
+        assert_eq!(units[2].label, "文本块 3 · 结尾");
+    }
+
+    #[test]
+    fn 无空行长文本也不会退化成一个超大块() {
+        let text = "界".repeat(TEXT_BLOCK_MAX_CHARS * 2 + 7);
+        let (_, units) = plain(text.as_bytes());
+        assert_eq!(units.len(), 3);
+        assert_eq!(units[0].text.chars().count(), TEXT_BLOCK_MAX_CHARS);
+        assert_eq!(units[1].text.chars().count(), TEXT_BLOCK_MAX_CHARS);
+        assert_eq!(units[2].text.chars().count(), 7);
     }
 }

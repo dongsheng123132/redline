@@ -33,6 +33,8 @@ ShadowDoc is a companion specification to
 - [Conformance fixtures](./conformance/manifest.json)
 - [Reference validator](../../scripts/shadowdoc-validate.mjs)
 - [First implementation report](../../docs/ShadowDoc实验报告-v0.1.md)
+- [Second-round text segmentation and parser PK report](../../docs/ShadowDoc实验报告-v0.1-第二轮.md)
+- [Controlled parser PK corpus and runner](./benchmark/README.md)
 - [ShadowDoc data model](../../docs/影文档协议.md)
 - [Open specification and ecosystem plan](../../docs/ShadowDoc开源规范与生态计划.md)
 - [Action and code plan](../../docs/功能与代码规划.md)
@@ -52,6 +54,7 @@ Run the current suite:
 
 ```text
 node --test scripts/shadowdoc-validate.test.mjs
+node --test scripts/shadowdoc-pk.test.mjs
 cargo run --release -p redline-core --example shadowdoc_benchmark
 ```
 

@@ -78,11 +78,12 @@ impl Drop for Scratch {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let scratch = Scratch::new()?;
-    let docx = scratch.path.join("controlled.docx");
-    let xlsx = scratch.path.join("controlled.xlsx");
-    let pptx = scratch.path.join("controlled.pptx");
-    let pdf = scratch.path.join("controlled.pdf");
+    let (corpus_dir, _corpus_scratch) = corpus_dir_from_args()?;
+    let safety_scratch = Scratch::new()?;
+    let docx = corpus_dir.join("controlled.docx");
+    let xlsx = corpus_dir.join("controlled.xlsx");
+    let pptx = corpus_dir.join("controlled.pptx");
+    let pdf = corpus_dir.join("controlled.pdf");
 
     write_docx(&docx, 200)?;
     write_xlsx(&xlsx, 24, 100)?;
@@ -101,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         scenarios.push(benchmark("repository-shadowdoc-markdown", "real repository document", &real_markdown)?);
     }
 
-    let safety_checks = vec![stale_source_check(&scratch.path)?];
+    let safety_checks = vec![stale_source_check(&safety_scratch.path)?];
     let report = Report {
         schema: "redline.shadowdoc-benchmark/0.1",
         repetitions: REPETITIONS,
@@ -111,6 +112,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
+}
+
+fn corpus_dir_from_args() -> Result<(PathBuf, Option<Scratch>), Box<dyn std::error::Error>> {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    match args.as_slice() {
+        [] => {
+            let scratch = Scratch::new()?;
+            Ok((scratch.path.clone(), Some(scratch)))
+        }
+        [flag, path] if flag == "--corpus-dir" => {
+            let raw = PathBuf::from(path);
+            let path = if raw.is_absolute() { raw } else { std::env::current_dir()?.join(raw) };
+            fs::create_dir_all(&path)?;
+            Ok((path, None))
+        }
+        _ => Err("用法: shadowdoc_benchmark [--corpus-dir PATH]".into()),
+    }
 }
 
 fn benchmark(name: &str, corpus: &str, path: &Path) -> Result<Scenario, Box<dyn std::error::Error>> {
@@ -212,16 +230,41 @@ fn write_docx(path: &Path, paragraphs: usize) -> Result<(), Box<dyn std::error::
         ));
     }
     xml.push_str("</w:body></w:document>");
-    write_zip(path, vec![("word/document.xml".into(), xml.into_bytes())])
+    write_zip(
+        path,
+        vec![
+            (
+                "[Content_Types].xml".into(),
+                br#"<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>"#.to_vec(),
+            ),
+            (
+                "_rels/.rels".into(),
+                br#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>"#.to_vec(),
+            ),
+            ("word/document.xml".into(), xml.into_bytes()),
+        ],
+    )
 }
 
 fn write_xlsx(path: &Path, sheets: usize, cells_per_sheet: usize) -> Result<(), Box<dyn std::error::Error>> {
     let mut workbook = String::from(
-        r#"<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets>"#,
+        r#"<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>"#,
     );
-    let mut entries = Vec::with_capacity(sheets + 1);
+    let mut content_types = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>"#,
+    );
+    let mut workbook_rels = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
+    );
+    let mut entries = Vec::with_capacity(sheets + 4);
     for sheet in 1..=sheets {
-        workbook.push_str(&format!(r#"<sheet name="Sheet {sheet}" sheetId="{sheet}"/>"#));
+        workbook.push_str(&format!(r#"<sheet name="Sheet {sheet}" sheetId="{sheet}" r:id="rId{sheet}"/>"#));
+        workbook_rels.push_str(&format!(
+            r#"<Relationship Id="rId{sheet}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{sheet}.xml"/>"#
+        ));
+        content_types.push_str(&format!(
+            r#"<Override PartName="/xl/worksheets/sheet{sheet}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>"#
+        ));
         let mut xml = String::from(
             r#"<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>"#,
         );
@@ -235,19 +278,73 @@ fn write_xlsx(path: &Path, sheets: usize, cells_per_sheet: usize) -> Result<(), 
         entries.push((format!("xl/worksheets/sheet{sheet}.xml"), xml.into_bytes()));
     }
     workbook.push_str("</sheets></workbook>");
+    workbook_rels.push_str("</Relationships>");
+    content_types.push_str("</Types>");
+    entries.push(("[Content_Types].xml".into(), content_types.into_bytes()));
+    entries.push((
+        "_rels/.rels".into(),
+        br#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"#.to_vec(),
+    ));
+    entries.push(("xl/_rels/workbook.xml.rels".into(), workbook_rels.into_bytes()));
     entries.push(("xl/workbook.xml".into(), workbook.into_bytes()));
     write_zip(path, entries)
 }
 
 fn write_pptx(path: &Path, slides: usize) -> Result<(), Box<dyn std::error::Error>> {
-    let entries = (1..=slides)
-        .map(|slide| {
-            let xml = format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>Slide {slide} controlled benchmark content for review and revision.</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>"#
-            );
-            (format!("ppt/slides/slide{slide}.xml"), xml.into_bytes())
-        })
-        .collect();
+    let mut content_types = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>"#,
+    );
+    let mut presentation = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8"?><p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>"#,
+    );
+    let mut presentation_rels = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>"#,
+    );
+    let mut entries = Vec::with_capacity(slides * 2 + 8);
+    for slide in 1..=slides {
+        let relationship_id = slide + 1;
+        presentation.push_str(&format!(r#"<p:sldId id="{}" r:id="rId{relationship_id}"/>"#, 255 + slide));
+        presentation_rels.push_str(&format!(
+            r#"<Relationship Id="rId{relationship_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide{slide}.xml"/>"#
+        ));
+        content_types.push_str(&format!(
+            r#"<Override PartName="/ppt/slides/slide{slide}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>"#
+        ));
+        let xml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="TextBox {slide}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Slide {slide} controlled benchmark content for review and revision.</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"#
+        );
+        entries.push((format!("ppt/slides/slide{slide}.xml"), xml.into_bytes()));
+        entries.push((
+            format!("ppt/slides/_rels/slide{slide}.xml.rels"),
+            br#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>"#.to_vec(),
+        ));
+    }
+    presentation.push_str(r#"</p:sldIdLst><p:sldSz cx="9144000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>"#);
+    presentation_rels.push_str("</Relationships>");
+    content_types.push_str("</Types>");
+    entries.push(("[Content_Types].xml".into(), content_types.into_bytes()));
+    entries.push((
+        "_rels/.rels".into(),
+        br#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>"#.to_vec(),
+    ));
+    entries.push(("ppt/presentation.xml".into(), presentation.into_bytes()));
+    entries.push(("ppt/_rels/presentation.xml.rels".into(), presentation_rels.into_bytes()));
+    entries.push((
+        "ppt/slideLayouts/slideLayout1.xml".into(),
+        br#"<?xml version="1.0" encoding="UTF-8"?><p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" type="blank"><p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>"#.to_vec(),
+    ));
+    entries.push((
+        "ppt/slideLayouts/_rels/slideLayout1.xml.rels".into(),
+        br#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>"#.to_vec(),
+    ));
+    entries.push((
+        "ppt/slideMasters/slideMaster1.xml".into(),
+        br#"<?xml version="1.0" encoding="UTF-8"?><p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMap accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" bg1="lt1" bg2="lt2" folHlink="folHlink" hlink="hlink" tx1="dk1" tx2="dk2"/><p:sldLayoutIdLst><p:sldLayoutId id="1" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>"#.to_vec(),
+    ));
+    entries.push((
+        "ppt/slideMasters/_rels/slideMaster1.xml.rels".into(),
+        br#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>"#.to_vec(),
+    ));
     write_zip(path, entries)
 }
 

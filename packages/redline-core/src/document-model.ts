@@ -61,7 +61,7 @@ export interface RedlineDocument {
   sourceSha256?: string;
   format: RedlineFormat;
   shadow?: ShadowDescriptor;
-  /** 大部分格式只有一个 unit（图片/html/text/docx）；PDF/PSD/XLSX/ZIP/3D 是多 unit。 */
+  /** 格式按自己的自然粒度给出 unit；文本也可以是多个确定性 document block。 */
   units: RedlineUnit[];
   /** 解析/渲染中途的非致命提示，比如「STEP/IGES 暂不支持」「pptx 仅提取大纲，未逐页渲染」。 */
   notes?: string[];

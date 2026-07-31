@@ -1,0 +1,43 @@
+{
+  "schema": "shadowdoc-pk-corpus/0.1",
+  "timeoutSeconds": 180,
+  "repetitions": 3,
+  "cases": [
+    {
+      "id": "controlled-docx",
+      "format": "docx",
+      "path": "../../../target/shadowdoc-pk-corpus/controlled.docx",
+      "requiredText": [
+        "Section 1: controlled benchmark content",
+        "Section 200: controlled benchmark content"
+      ]
+    },
+    {
+      "id": "controlled-xlsx",
+      "format": "xlsx",
+      "path": "../../../target/shadowdoc-pk-corpus/controlled.xlsx",
+      "requiredText": [
+        "Sheet 1 row 1 controlled value",
+        "Sheet 24 row 100 controlled value"
+      ]
+    },
+    {
+      "id": "controlled-pptx",
+      "format": "pptx",
+      "path": "../../../target/shadowdoc-pk-corpus/controlled.pptx",
+      "requiredText": [
+        "Slide 1 controlled benchmark content",
+        "Slide 40 controlled benchmark content"
+      ]
+    },
+    {
+      "id": "controlled-pdf",
+      "format": "pdf",
+      "path": "../../../target/shadowdoc-pk-corpus/controlled.pdf",
+      "requiredText": [
+        "Page 1 controlled benchmark content",
+        "Page 40 controlled benchmark content"
+      ]
+    }
+  ]
+}
