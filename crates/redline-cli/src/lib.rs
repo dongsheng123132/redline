@@ -172,8 +172,21 @@ pub fn run() -> i32 {
 /// 「双击文件关联打开 GUI」——`redline inspect a.docx` 走 CLI，
 /// `redline C:\包.zip` 走 GUI。
 pub const SUBCOMMANDS: &[&str] = &[
-    "inspect", "diff", "verify", "formats", "actions", "archive", "apply", "agents", "send", "call",
-    "help", "--help", "-h", "--version", "-V",
+    "inspect",
+    "diff",
+    "verify",
+    "formats",
+    "actions",
+    "archive",
+    "apply",
+    "agents",
+    "send",
+    "call",
+    "help",
+    "--help",
+    "-h",
+    "--version",
+    "-V",
 ];
 
 /// 这批参数是要跑 CLI，还是要开 GUI？
@@ -191,22 +204,14 @@ fn build_request(command: &Command) -> Result<(&'static str, Value, Option<Strin
         Command::Verify { file } => (action_id::VERIFY, json!({ "path": file }), None),
         Command::Formats => (action_id::FORMATS, json!({}), None),
         Command::Actions => (LOCAL_ACTIONS, json!({}), None),
-        Command::Diff { before, after } => {
-            (action_id::DIFF, json!({ "before": before, "after": after }), None)
+        Command::Diff { before, after } => (action_id::DIFF, json!({ "before": before, "after": after }), None),
+        Command::Archive(ArchiveCommand::List { file }) => (action_id::ARCHIVE_LIST, json!({ "path": file }), None),
+        Command::Archive(ArchiveCommand::Extract { file, dest, overwrite }) => {
+            (action_id::ARCHIVE_EXTRACT, json!({ "path": file, "dest": dest, "overwrite": overwrite }), None)
         }
-        Command::Archive(ArchiveCommand::List { file }) => {
-            (action_id::ARCHIVE_LIST, json!({ "path": file }), None)
-        }
-        Command::Archive(ArchiveCommand::Extract { file, dest, overwrite }) => (
-            action_id::ARCHIVE_EXTRACT,
-            json!({ "path": file, "dest": dest, "overwrite": overwrite }),
-            None,
-        ),
         Command::Apply { input, patch, output, author, audit, force } => {
-            let raw = std::fs::read_to_string(patch)
-                .map_err(|e| format!("读不到 patch 文件 {patch}：{e}"))?;
-            let parsed: Value = serde_json::from_str(&raw)
-                .map_err(|e| format!("patch 不是合法 JSON：{e}"))?;
+            let raw = std::fs::read_to_string(patch).map_err(|e| format!("读不到 patch 文件 {patch}：{e}"))?;
+            let parsed: Value = serde_json::from_str(&raw).map_err(|e| format!("patch 不是合法 JSON：{e}"))?;
             (
                 action_id::APPLY,
                 json!({
@@ -245,8 +250,7 @@ fn build_request(command: &Command) -> Result<(&'static str, Value, Option<Strin
             )
         }
         Command::Call { action, params } => {
-            let parsed: Value =
-                serde_json::from_str(params).map_err(|e| format!("--params 不是合法 JSON：{e}"))?;
+            let parsed: Value = serde_json::from_str(params).map_err(|e| format!("--params 不是合法 JSON：{e}"))?;
             // action id 由核心校验，未知的会拿到 unknown_action 错误信封（退出码 1）
             (Box::leak(action.clone().into_boxed_str()), parsed, None)
         }
@@ -371,7 +375,12 @@ fn print_human(envelope: &Value) {
         action_id::ARCHIVE_LIST => {
             println!("共 {} 条", envelope["count"]);
             for entry in envelope["entries"].as_array().unwrap_or(&vec![]).iter().take(50) {
-                println!("  {:<10} {:>10}  {}", entry["format"].as_str().unwrap_or("?"), entry["bytes"], entry["path"].as_str().unwrap_or("?"));
+                println!(
+                    "  {:<10} {:>10}  {}",
+                    entry["format"].as_str().unwrap_or("?"),
+                    entry["bytes"],
+                    entry["path"].as_str().unwrap_or("?")
+                );
             }
         }
         action_id::ARCHIVE_EXTRACT => {
@@ -425,7 +434,11 @@ fn print_human(envelope: &Value) {
         }
         action_id::APPLY => {
             println!("已写出：{}", envelope["output"]["path"].as_str().unwrap_or("?"));
-            println!("修订 {} 处，作者 {}", envelope["applied"].as_array().map(Vec::len).unwrap_or(0), envelope["author"].as_str().unwrap_or("?"));
+            println!(
+                "修订 {} 处，作者 {}",
+                envelope["applied"].as_array().map(Vec::len).unwrap_or(0),
+                envelope["author"].as_str().unwrap_or("?")
+            );
             println!("回滚：{}", envelope["rollback"].as_str().unwrap_or(""));
         }
         _ => println!("{}", serde_json::to_string_pretty(envelope).unwrap_or_default()),

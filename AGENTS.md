@@ -90,7 +90,7 @@ apps/redline-desktop/
 packages/redline-core/            渲染层（TS）：viewer + SVG 标注层
 scripts/check-format-parity.mjs   两份格式表的漂移检查
 docs/                             产品战略 / 开源商业化 / 功能代码规划 / 传播计划
-                                  架构 / 动作契约 / 开发计划 / 商业模型 / 决策记录
+                                  影文档协议 / 架构 / 动作契约 / 开发计划 / 商业模型 / 决策记录
 bin/redline.py                    ⚠️ 已废弃，别引用，别改
 ```
 

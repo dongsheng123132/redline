@@ -30,6 +30,21 @@ export interface RedlinePanelProps {
   readOnly?: boolean;
 }
 
+function mergeVisualUnits(doc: RedlineDocument, visualUnits: RedlineUnit[]): RedlineDocument {
+  // 没有核心语义影子的宿主继续沿用 viewer units。
+  if (!doc.shadow || doc.units.length === 0) return { ...doc, units: visualUnits };
+
+  // 有 ShadowDoc 时，unit ID/文字/哈希以核心为准；viewer 只补视觉尺寸。
+  const visualById = new Map(visualUnits.map((unit) => [unit.id, unit]));
+  const sharedRenderSize = visualUnits.length === 1 ? visualUnits[0]?.renderSize : undefined;
+  const units = doc.units.map((unit, index) => ({
+    ...unit,
+    index,
+    renderSize: visualById.get(unit.id)?.renderSize ?? sharedRenderSize ?? unit.renderSize,
+  }));
+  return { ...doc, units };
+}
+
 export function RedlinePanel({
   host,
   path,
@@ -54,10 +69,23 @@ export function RedlinePanel({
     setActiveUnitId("");
     (async () => {
       try {
+        // 语义 inspect 与读视觉字节并行，但不阻塞首屏：bytes 一到就先让 viewer 渲染，
+        // ShadowDoc 随后异步合并，避免映射层拖慢“文件打不开，先用叠象”的第一体验。
+        const inspectedPromise =
+          host.inspectDocument?.(path).catch(() => null) ?? Promise.resolve(null);
         const b = await host.readFileBytes(path);
         if (cancelled) return;
         setBytes(b);
         setDoc({ docId: path, sourcePath: path, format, units: [] });
+
+        const inspected = await inspectedPromise;
+        if (cancelled || !inspected) return;
+        setDoc((current) => mergeVisualUnits(inspected, current?.units ?? []));
+        setActiveUnitId((current) =>
+          inspected.units.some((unit) => unit.id === current)
+            ? current
+            : (inspected.units[0]?.id ?? current),
+        );
       } catch (e) {
         if (!cancelled) setErr(String(e));
       }
@@ -68,9 +96,12 @@ export function RedlinePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, path, format]);
 
-  const handleUnitsResolved = useCallback((units: RedlineUnit[]) => {
-    setDoc((d) => (d ? { ...d, units } : d));
-    setActiveUnitId((cur) => cur || units[0]?.id || "");
+  const handleUnitsResolved = useCallback((visualUnits: RedlineUnit[]) => {
+    setDoc((d) => {
+      if (!d) return d;
+      return mergeVisualUnits(d, visualUnits);
+    });
+    setActiveUnitId((cur) => cur || visualUnits[0]?.id || "");
   }, []);
 
   const Viewer = useMemo(() => loadViewer(format), [format]);

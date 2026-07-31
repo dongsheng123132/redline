@@ -24,10 +24,23 @@ export type RedlineFormat =
   | "cad2d"
   | "unsupported";
 
+/** `document.inspect` 返回的影文档身份。视觉 viewer 和语义 units 必须绑定同一 source sha256。 */
+export interface ShadowDescriptor {
+  schema: "redline.shadow-document";
+  schemaVersion: number;
+  producer: string;
+  profile: "semantic";
+  granularity: string;
+  lossy: boolean;
+  sourceSha256: string;
+}
+
 /** 文档内一个可标注单元（页/图层/sheet/条目/场景……）。 */
 export interface RedlineUnit {
   /** 单元在文档内的稳定标识，同一文档重开后要保持一致，标注才能对得上号。 */
   id: string;
+  /** paragraph / sheet / slide / page / document / entry。旧宿主可暂时不提供。 */
+  kind?: string;
   /** 展示用序号，从 0 开始。 */
   index: number;
   /** 展示用标签，例如「第 3 页」「图层：背景」「Sheet1」。 */
@@ -36,13 +49,18 @@ export interface RedlineUnit {
   renderSize?: { width: number; height: number };
   /** 供 AI 读取的文字内容（解析/OCR 出来的），随标注一起导出给 agent。 */
   text?: string;
+  /** unit 正文哈希，用于发现标注目标内容已经漂移。 */
+  textSha256?: string;
 }
 
 /** 一份被 Redline 打开的文档。只读——Redline 从不回写 sourcePath 指向的文件。 */
 export interface RedlineDocument {
   docId: string;
   sourcePath: string;
+  /** 有核心 inspect 的宿主必须提供；没有时继续退化为路径绑定。 */
+  sourceSha256?: string;
   format: RedlineFormat;
+  shadow?: ShadowDescriptor;
   /** 大部分格式只有一个 unit（图片/html/text/docx）；PDF/PSD/XLSX/ZIP/3D 是多 unit。 */
   units: RedlineUnit[];
   /** 解析/渲染中途的非致命提示，比如「STEP/IGES 暂不支持」「pptx 仅提取大纲，未逐页渲染」。 */
@@ -73,8 +91,16 @@ export interface RedlineAnnotation {
 /** 标注导出给 agent 消费的结构——带上 unit 的展示标签和文字内容，agent 不用反查文档模型。 */
 export interface RedlineAnnotationExport {
   docPath: string;
+  sourceSha256?: string;
   format: RedlineFormat;
-  annotations: Array<RedlineAnnotation & { unitLabel: string; unitText?: string }>;
+  annotations: Array<
+    RedlineAnnotation & {
+      unitLabel: string;
+      unitKind?: string;
+      unitText?: string;
+      unitTextSha256?: string;
+    }
+  >;
 }
 
 /** 把文档 + 标注列表拼成 agent 可读的导出结构。 */
@@ -85,10 +111,17 @@ export function exportAnnotations(
   const unitById = new Map(doc.units.map((u) => [u.id, u]));
   return {
     docPath: doc.sourcePath,
+    sourceSha256: doc.sourceSha256,
     format: doc.format,
     annotations: annotations.map((a) => {
       const unit = unitById.get(a.unitId);
-      return { ...a, unitLabel: unit?.label ?? a.unitId, unitText: unit?.text };
+      return {
+        ...a,
+        unitLabel: unit?.label ?? a.unitId,
+        unitKind: unit?.kind,
+        unitText: unit?.text,
+        unitTextSha256: unit?.textSha256,
+      };
     }),
   };
 }

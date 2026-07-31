@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ViewerProps } from "./types";
 import type { RedlineUnit } from "../document-model";
+import { numberedUnitId, numberedUnitIndex } from "./util";
 
 /** PDF 逐页渲染。pdf.js 懒加载，worker 走 Vite `?url` 资产导入，不进主 bundle。 */
 export default function PdfViewer({ bytes, activeUnitId, onUnitsResolved, renderOverlay }: ViewerProps) {
@@ -25,7 +26,8 @@ export default function PdfViewer({ bytes, activeUnitId, onUnitsResolved, render
         const doc = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
         if (cancelled) return;
         const units: RedlineUnit[] = Array.from({ length: doc.numPages }, (_, i) => ({
-          id: String(i + 1),
+          id: numberedUnitId("page", i),
+          kind: "page",
           index: i,
           label: `第 ${i + 1} 页`,
         }));
@@ -44,7 +46,9 @@ export default function PdfViewer({ bytes, activeUnitId, onUnitsResolved, render
     let cancelled = false;
     if (!pdf || !canvasEl || !activeUnitId) return;
     (async () => {
-      const page = await pdf.getPage(Number(activeUnitId));
+      const pageIndex = numberedUnitIndex(activeUnitId, "page");
+      if (pageIndex < 0) return;
+      const page = await pdf.getPage(pageIndex + 1);
       const viewport = page.getViewport({ scale: 1.5 });
       canvasEl.width = viewport.width;
       canvasEl.height = viewport.height;

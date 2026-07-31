@@ -106,6 +106,7 @@ export default function App() {
       const envelope = await call<DispatchReport>(ACTION.agentDispatch, {
         agent: agentId,
         source,
+        expectedSourceSha256: doc?.sourceSha256,
         output,
         annotations: payloadAnnotations,
         instruction,
@@ -130,7 +131,7 @@ export default function App() {
     } finally {
       setRunning(false);
     }
-  }, [source, output, agentId, payloadAnnotations, instruction]);
+  }, [source, doc?.sourceSha256, output, agentId, payloadAnnotations, instruction]);
 
   return (
     <div className="flex h-screen flex-col bg-[#0f1115] text-gray-200">

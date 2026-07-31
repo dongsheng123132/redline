@@ -91,11 +91,7 @@ pub type Result<T> = std::result::Result<T, RedlineError>;
 
 impl From<std::io::Error> for RedlineError {
     fn from(err: std::io::Error) -> Self {
-        let class = if err.kind() == std::io::ErrorKind::NotFound {
-            ErrorClass::Input
-        } else {
-            ErrorClass::Internal
-        };
+        let class = if err.kind() == std::io::ErrorKind::NotFound { ErrorClass::Input } else { ErrorClass::Internal };
         RedlineError::new(class, "io_error", err.to_string())
     }
 }

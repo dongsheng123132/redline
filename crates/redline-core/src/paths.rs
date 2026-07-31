@@ -58,10 +58,7 @@ mod tests {
     #[test]
     fn 长路径前缀被剥掉() {
         assert_eq!(strip_verbatim(PathBuf::from(r"\\?\C:\a\b.docx")), PathBuf::from(r"C:\a\b.docx"));
-        assert_eq!(
-            strip_verbatim(PathBuf::from(r"\\?\UNC\srv\share\a.docx")),
-            PathBuf::from(r"\\srv\share\a.docx")
-        );
+        assert_eq!(strip_verbatim(PathBuf::from(r"\\?\UNC\srv\share\a.docx")), PathBuf::from(r"\\srv\share\a.docx"));
         // 本来就没有前缀的路径原样返回
         assert_eq!(strip_verbatim(PathBuf::from("/tmp/a.docx")), PathBuf::from("/tmp/a.docx"));
     }

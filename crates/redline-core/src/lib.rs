@@ -21,6 +21,7 @@ pub mod format;
 pub mod inspect;
 pub mod ooxml;
 pub mod paths;
+pub mod shadow;
 
 use serde_json::{json, Value};
 
@@ -43,7 +44,7 @@ pub fn formats() -> Value {
 
 /// 全部动作的绑定清单。新增动作必须同时在这里登记，否则任何界面都调不到它。
 pub const ACTIONS: &[(&str, &str)] = &[
-    (action::id::INSPECT, "解析本地文件成结构化快照（只读）"),
+    (action::id::INSPECT, "解析本地文件成与原件哈希绑定的 ShadowDoc 语义投影（只读）"),
     (action::id::DIFF, "对比两个同格式文件（只读）"),
     (action::id::APPLY, "把 patch 写成带 Track Changes 的新文件（只有这个动作写文件）"),
     (action::id::VERIFY, "检查文件能否被解析（只读）"),
@@ -102,14 +103,12 @@ fn run(action_id: &str, params: &Value) -> Result<Value> {
         action::id::AGENT_CATALOG => Ok(agent::catalog()),
 
         action::id::AGENT_DISPATCH => {
-            let annotations: Vec<agent::Annotation> = params
-                .get("annotations")
-                .map(|value| parse_annotations(value))
-                .transpose()?
-                .unwrap_or_default();
+            let annotations: Vec<agent::Annotation> =
+                params.get("annotations").map(|value| parse_annotations(value)).transpose()?.unwrap_or_default();
             let report = agent::dispatch(agent::DispatchRequest {
                 agent: str_param(params, "agent")?,
                 source: str_param(params, "source")?,
+                expected_source_sha256: params.get("expectedSourceSha256").and_then(Value::as_str).map(str::to_string),
                 output: str_param(params, "output")?,
                 annotations,
                 instruction: params.get("instruction").and_then(Value::as_str).map(str::to_string),
@@ -122,10 +121,7 @@ fn run(action_id: &str, params: &Value) -> Result<Value> {
 
         action::id::APPLY => {
             let patch: apply::Patch = serde_json::from_value(
-                params
-                    .get("patch")
-                    .cloned()
-                    .ok_or_else(|| RedlineError::input("missing_param", "缺少参数 patch"))?,
+                params.get("patch").cloned().ok_or_else(|| RedlineError::input("missing_param", "缺少参数 patch"))?,
             )?;
             let audit = apply::apply_docx(
                 str_param(params, "input")?,
@@ -139,11 +135,7 @@ fn run(action_id: &str, params: &Value) -> Result<Value> {
             Ok(apply::audit_json(&audit))
         }
 
-        unknown => Err(RedlineError::input(
-            "unknown_action",
-            format!("未知动作：{unknown}"),
-        )
-        .with_details(json!({
+        unknown => Err(RedlineError::input("unknown_action", format!("未知动作：{unknown}")).with_details(json!({
             "known": ACTIONS.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
         }))),
     }
@@ -151,16 +143,12 @@ fn run(action_id: &str, params: &Value) -> Result<Value> {
 
 /// 标注可以只给 `{unitId, note}`，正文由核心从快照里补 —— 界面不必自己去读文档。
 fn parse_annotations(value: &Value) -> Result<Vec<agent::Annotation>> {
-    let items = value
-        .as_array()
-        .ok_or_else(|| RedlineError::input("bad_annotations", "annotations 必须是数组"))?;
+    let items = value.as_array().ok_or_else(|| RedlineError::input("bad_annotations", "annotations 必须是数组"))?;
     items
         .iter()
         .map(|item| {
-            let note = item
-                .get("note")
-                .and_then(Value::as_str)
-                .ok_or_else(|| RedlineError::input("bad_annotations", "每条标注都要有 note"))?;
+            let note =
+                item.get("note").and_then(Value::as_str).ok_or_else(|| RedlineError::input("bad_annotations", "每条标注都要有 note"))?;
             Ok(agent::Annotation {
                 unit_id: item.get("unitId").and_then(Value::as_str).map(str::to_string),
                 note: note.to_string(),
@@ -171,10 +159,7 @@ fn parse_annotations(value: &Value) -> Result<Vec<agent::Annotation>> {
 }
 
 fn str_param<'a>(params: &'a Value, name: &str) -> Result<&'a str> {
-    params
-        .get(name)
-        .and_then(Value::as_str)
-        .ok_or_else(|| RedlineError::input("missing_param", format!("缺少字符串参数 {name}")))
+    params.get(name).and_then(Value::as_str).ok_or_else(|| RedlineError::input("missing_param", format!("缺少字符串参数 {name}")))
 }
 
 #[cfg(test)]
@@ -202,6 +187,26 @@ mod tests {
         assert_eq!(out["ok"], true);
         let formats = out["formats"].as_array().expect("formats 是数组");
         assert!(formats.iter().any(|f| f["id"] == "docx" && f["viewer"] == "DocxViewer"));
+    }
+
+    #[test]
+    fn inspect_信封包含与原件绑定的影文档() {
+        let unique = format!(
+            "redline-shadow-envelope-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        );
+        let path = std::env::temp_dir().join(format!("{unique}.txt"));
+        std::fs::write(&path, "影文档").unwrap();
+        let out = dispatch(action::id::INSPECT, &json!({ "path": path.to_string_lossy() }));
+        let _ = std::fs::remove_file(&path);
+
+        assert_eq!(out["ok"], true);
+        assert_eq!(out["shadow"]["schema"], shadow::SCHEMA);
+        assert_eq!(out["shadow"]["schemaVersion"], 1);
+        assert_eq!(out["shadow"]["sourceSha256"], out["source"]["sha256"]);
+        assert_eq!(out["units"][0]["kind"], "document");
+        assert_eq!(out["units"][0]["textSha256"].as_str().unwrap().len(), 64);
     }
 
     #[test]

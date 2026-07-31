@@ -11,14 +11,18 @@ import { exportAnnotations, formatAnnotationsAsText } from "../document-model";
 export function useAnnotations(host: RedlineHost, doc: RedlineDocument | null) {
   const [annotations, setAnnotations] = useState<RedlineAnnotation[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const sourcePath = doc?.sourcePath;
+  const sourceSha256 = doc?.sourceSha256;
 
   useEffect(() => {
     let cancelled = false;
     setLoaded(false);
     setAnnotations([]);
-    if (!doc) return;
+    if (!sourcePath) return;
     (async () => {
-      const raw = await host.annotationStore.get(annotationStoreKey(doc.sourcePath));
+      // 有源哈希时绝不回退读取旧的「只按路径」标注；同一路径换了文件内容，
+      // 旧 bbox/unitId 不能静默套到新原件上。
+      const raw = await host.annotationStore.get(annotationStoreKey(sourcePath, sourceSha256));
       if (cancelled) return;
       try {
         setAnnotations(raw ? (JSON.parse(raw) as RedlineAnnotation[]) : []);
@@ -30,14 +34,14 @@ export function useAnnotations(host: RedlineHost, doc: RedlineDocument | null) {
     return () => {
       cancelled = true;
     };
-  }, [host, doc]);
+  }, [host, sourcePath, sourceSha256]);
 
   const persist = useCallback(
     (next: RedlineAnnotation[]) => {
-      if (!doc) return;
-      void host.annotationStore.set(annotationStoreKey(doc.sourcePath), JSON.stringify(next));
+      if (!sourcePath) return;
+      void host.annotationStore.set(annotationStoreKey(sourcePath, sourceSha256), JSON.stringify(next));
     },
-    [host, doc],
+    [host, sourcePath, sourceSha256],
   );
 
   const addAnnotation = useCallback(

@@ -83,12 +83,7 @@ pub const FORMATS: &[FormatSpec] = &[
         caps: Caps::viewable(),
     },
     FormatSpec {
-        id: "html",
-        label: "网页",
-        extensions: &["html", "htm"],
-        viewer: "HtmlViewer",
-        tier: Tier::Free,
-        caps: Caps::readable(),
+        id: "html", label: "网页", extensions: &["html", "htm"], viewer: "HtmlViewer", tier: Tier::Free, caps: Caps::readable()
     },
     FormatSpec {
         id: "text",
@@ -98,14 +93,7 @@ pub const FORMATS: &[FormatSpec] = &[
         tier: Tier::Free,
         caps: Caps::readable(),
     },
-    FormatSpec {
-        id: "pdf",
-        label: "PDF",
-        extensions: &["pdf"],
-        viewer: "PdfViewer",
-        tier: Tier::Free,
-        caps: Caps::readable(),
-    },
+    FormatSpec { id: "pdf", label: "PDF", extensions: &["pdf"], viewer: "PdfViewer", tier: Tier::Free, caps: Caps::readable() },
     FormatSpec {
         id: "docx",
         label: "Word 文档",
@@ -116,12 +104,7 @@ pub const FORMATS: &[FormatSpec] = &[
         caps: Caps::writable(),
     },
     FormatSpec {
-        id: "xlsx",
-        label: "Excel 表格",
-        extensions: &["xlsx"],
-        viewer: "SheetViewer",
-        tier: Tier::Free,
-        caps: Caps::readable(),
+        id: "xlsx", label: "Excel 表格", extensions: &["xlsx"], viewer: "SheetViewer", tier: Tier::Free, caps: Caps::readable()
     },
     FormatSpec {
         id: "pptx-outline",
@@ -149,12 +132,7 @@ pub const FORMATS: &[FormatSpec] = &[
         caps: Caps::archive(ExtractBackend::External7z),
     },
     FormatSpec {
-        id: "psd",
-        label: "Photoshop 文档",
-        extensions: &["psd"],
-        viewer: "PsdViewer",
-        tier: Tier::Free,
-        caps: Caps::viewable(),
+        id: "psd", label: "Photoshop 文档", extensions: &["psd"], viewer: "PsdViewer", tier: Tier::Free, caps: Caps::viewable()
     },
     FormatSpec {
         id: "model3d",
@@ -164,14 +142,7 @@ pub const FORMATS: &[FormatSpec] = &[
         tier: Tier::Free,
         caps: Caps::viewable(),
     },
-    FormatSpec {
-        id: "cad2d",
-        label: "CAD 图纸",
-        extensions: &["dxf"],
-        viewer: "ModelViewer",
-        tier: Tier::Free,
-        caps: Caps::viewable(),
-    },
+    FormatSpec { id: "cad2d", label: "CAD 图纸", extensions: &["dxf"], viewer: "ModelViewer", tier: Tier::Free, caps: Caps::viewable() },
 ];
 
 /// 明确拒绝的老格式 —— 拒绝理由要能原样念给用户听。
@@ -179,7 +150,10 @@ pub const FORMATS: &[FormatSpec] = &[
 /// 这些格式技术上能勉强读出点东西，但读出来的东西不足以支撑「改完还能还原」，
 /// 与其伪装成"无损可编辑"，不如直说：先另存为新格式。
 pub const REFUSED: &[(&str, &str)] = &[
-    ("doc", "旧版 .doc 是二进制格式：Redline 不伪造「无损可编辑」。请保留原件后用 Word/WPS/LibreOffice 另存为 .docx，再执行 inspect/apply。"),
+    (
+        "doc",
+        "旧版 .doc 是二进制格式：Redline 不伪造「无损可编辑」。请保留原件后用 Word/WPS/LibreOffice 另存为 .docx，再执行 inspect/apply。",
+    ),
     ("xls", "旧版 .xls 是二进制格式，请先另存为 .xlsx。"),
     ("ppt", "旧版 .ppt 是二进制格式，请先另存为 .pptx。"),
 ];

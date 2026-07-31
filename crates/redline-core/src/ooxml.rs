@@ -55,11 +55,8 @@ impl Parts {
 
     /// 取一个必需部件并按 UTF-8 解码。缺件说明这不是一个合法的 OOXML 文件。
     pub fn require_str(&self, name: &str) -> Result<String> {
-        let data = self
-            .get(name)
-            .ok_or_else(|| RedlineError::input("missing_ooxml_part", format!("缺少 OOXML 部件：{name}")))?;
-        String::from_utf8(data.to_vec())
-            .map_err(|_| RedlineError::internal("bad_encoding", format!("部件 {name} 不是合法 UTF-8")))
+        let data = self.get(name).ok_or_else(|| RedlineError::input("missing_ooxml_part", format!("缺少 OOXML 部件：{name}")))?;
+        String::from_utf8(data.to_vec()).map_err(|_| RedlineError::internal("bad_encoding", format!("部件 {name} 不是合法 UTF-8")))
     }
 
     pub fn names(&self) -> impl Iterator<Item = &str> {
@@ -77,18 +74,13 @@ impl Parts {
         }
         let file = std::fs::File::create(path)?;
         let mut writer = zip::ZipWriter::new(file);
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated);
+        let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
         for entry in &self.entries {
             if entry.is_dir {
-                writer
-                    .add_directory(entry.name.clone(), options)
-                    .map_err(|e| RedlineError::internal("zip_write", e.to_string()))?;
+                writer.add_directory(entry.name.clone(), options).map_err(|e| RedlineError::internal("zip_write", e.to_string()))?;
                 continue;
             }
-            writer
-                .start_file(entry.name.clone(), options)
-                .map_err(|e| RedlineError::internal("zip_write", e.to_string()))?;
+            writer.start_file(entry.name.clone(), options).map_err(|e| RedlineError::internal("zip_write", e.to_string()))?;
             writer.write_all(&entry.data)?;
         }
         writer.finish().map_err(|e| RedlineError::internal("zip_write", e.to_string()))?;

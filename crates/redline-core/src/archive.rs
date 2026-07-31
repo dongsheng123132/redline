@@ -40,10 +40,7 @@ pub fn list(path: &str) -> Result<Vec<ArchiveEntry>> {
     match spec.caps.extract {
         ExtractBackend::Native => list_native(&source),
         ExtractBackend::External7z => Err(external_not_wired(spec)),
-        ExtractBackend::None => Err(RedlineError::input(
-            "not_an_archive",
-            format!("{} 不是压缩包。", source.display()),
-        )),
+        ExtractBackend::None => Err(RedlineError::input("not_an_archive", format!("{} 不是压缩包。", source.display()))),
     }
 }
 
@@ -147,10 +144,7 @@ fn safe_relative_path(name: &str) -> Result<PathBuf> {
         }
     }
     if safe.as_os_str().is_empty() {
-        return Err(RedlineError::refused(
-            "unsafe_archive_path",
-            format!("压缩包条目名非法：{name}"),
-        ));
+        return Err(RedlineError::refused("unsafe_archive_path", format!("压缩包条目名非法：{name}")));
     }
     Ok(safe)
 }
@@ -169,11 +163,12 @@ pub fn summarize(source: &Path, spec: &FormatSpec) -> Result<(Value, Vec<Unit>)>
         .iter()
         .take(MAX_UNITS)
         .enumerate()
-        .map(|(i, entry)| Unit {
-            id: format!("entry:{}", i + 1),
-            label: entry.path.clone(),
-            text: format!("{} · {} 字节 · 格式 {}", entry.path, entry.bytes, entry.format),
-            note: None,
+        .map(|(i, entry)| {
+            Unit::new(
+                format!("entry:{}", i + 1),
+                entry.path.clone(),
+                format!("{} · {} 字节 · 格式 {}", entry.path, entry.bytes, entry.format),
+            )
         })
         .collect();
 
@@ -197,8 +192,7 @@ fn spec_for(source: &Path) -> Result<&'static FormatSpec> {
     let name = source.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     let extension = format::extension_of(name);
     format::lookup(&extension).ok_or_else(|| {
-        RedlineError::input("unsupported_format", format!("暂不支持 .{extension}"))
-            .with_details(json!({ "extension": extension }))
+        RedlineError::input("unsupported_format", format!("暂不支持 .{extension}")).with_details(json!({ "extension": extension }))
     })
 }
 
@@ -209,10 +203,7 @@ fn spec_for(source: &Path) -> Result<&'static FormatSpec> {
 fn external_not_wired(spec: &FormatSpec) -> RedlineError {
     RedlineError::input(
         "extract_backend_missing",
-        format!(
-            "{} 需要外部解包器（7z），当前版本还没接。zip 系（zip/jar/apk/epub/docm…）已经可用。",
-            spec.label
-        ),
+        format!("{} 需要外部解包器（7z），当前版本还没接。zip 系（zip/jar/apk/epub/docm…）已经可用。", spec.label),
     )
     .with_details(json!({ "format": spec.id, "backend": "external_7z" }))
 }

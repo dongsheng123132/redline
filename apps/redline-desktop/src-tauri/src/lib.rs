@@ -68,11 +68,7 @@ impl AnnotationStore {
         }
         // 先写临时文件再改名 —— 半截 JSON 会让下次启动丢掉全部标注
         let temporary = self.file.with_extension("json.tmp");
-        if serde_json::to_string_pretty(data)
-            .ok()
-            .and_then(|text| std::fs::write(&temporary, text).ok())
-            .is_some()
-        {
+        if serde_json::to_string_pretty(data).ok().and_then(|text| std::fs::write(&temporary, text).ok()).is_some() {
             let _ = std::fs::rename(&temporary, &self.file);
         }
     }
@@ -85,7 +81,9 @@ fn kv_get(store: tauri::State<'_, AnnotationStore>, key: String) -> Option<Strin
 
 #[tauri::command]
 fn kv_set(store: tauri::State<'_, AnnotationStore>, key: String, value: Option<String>) {
-    let Ok(mut data) = store.data.lock() else { return };
+    let Ok(mut data) = store.data.lock() else {
+        return;
+    };
     match value {
         Some(text) => {
             data.insert(key, Value::String(text));
@@ -111,14 +109,7 @@ pub fn run(initial_path: Option<String>) {
             app.manage(InitialFile(initial_path.clone()));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            redline_call,
-            redline_actions,
-            initial_file,
-            read_file_bytes,
-            kv_get,
-            kv_set
-        ])
+        .invoke_handler(tauri::generate_handler![redline_call, redline_actions, initial_file, read_file_bytes, kv_get, kv_set])
         .run(tauri::generate_context!())
         .expect("Redline 桌面壳启动失败");
 }

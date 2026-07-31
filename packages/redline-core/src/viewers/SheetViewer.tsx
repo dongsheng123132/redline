@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ViewerProps } from "./types";
 import type { RedlineUnit } from "../document-model";
+import { numberedUnitId, numberedUnitIndex } from "./util";
 
 const MAX_ROWS = 500; // 大表格截断，不做虚拟滚动（不用太深入）
 
@@ -20,7 +21,8 @@ export default function SheetViewer({ bytes, activeUnitId, onUnitsResolved, rend
         const wb = XLSX.read(bytes, { type: "array" });
         if (cancelled) return;
         const units: RedlineUnit[] = wb.SheetNames.map((name: string, i: number) => ({
-          id: name,
+          id: numberedUnitId("sheet", i),
+          kind: "sheet",
           index: i,
           label: name,
         }));
@@ -40,7 +42,10 @@ export default function SheetViewer({ bytes, activeUnitId, onUnitsResolved, rend
     let cancelled = false;
     (async () => {
       const XLSX = await import("xlsx");
-      const sheet = workbook.Sheets[activeUnitId];
+      const sheetIndex = numberedUnitIndex(activeUnitId, "sheet");
+      if (sheetIndex < 0) return;
+      const sheetName = workbook.SheetNames[sheetIndex];
+      const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
       const data = sheet
         ? (XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as unknown[][])
         : [];

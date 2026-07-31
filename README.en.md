@@ -8,6 +8,8 @@
 
 **A model-neutral universal file workspace for the age of AI.**
 
+> **Can't open it? Try Stelora first.**
+
 Open documents, images, archives, design files, models, code, and folders without first installing
 their original applications. Mark the exact area that needs work, choose an AI agent such as Claude
 Code, Codex, or a local model, and compare the newly generated file on the right.
@@ -94,6 +96,7 @@ Registered Actions currently include:
 | Revenue model | [Business model (Chinese)](./docs/商业模型.md) |
 | Open-source and commercial boundaries | [Open source & commercialization (Chinese)](./docs/开源与商业化.md) |
 | Feature-to-code roadmap | [Feature and code plan (Chinese)](./docs/功能与代码规划.md) |
+| AI-ready visual and semantic mapping for traditional files | [ShadowDoc protocol (Chinese)](./docs/影文档协议.md) |
 | Prioritized implementation plan | [Development plan (Chinese)](./docs/开发计划.md) |
 | Distribution and communication | [Go-to-market plan (Chinese)](./docs/传播计划.md) |
 | Architecture | [Architecture (Chinese)](./docs/架构.md) |

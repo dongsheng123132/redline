@@ -88,11 +88,8 @@ pub fn apply_docx(input: &str, patch: &Patch, output: &str, options: ApplyOption
     let target = if target.is_absolute() { target } else { std::env::current_dir()?.join(target) };
 
     if same_file(&source, &target) {
-        return Err(RedlineError::refused(
-            "output_would_overwrite_input",
-            "安全限制：输出路径不能等于输入路径。请保留原件并指定新文件。",
-        )
-        .with_details(json!({ "path": target.display().to_string() })));
+        return Err(RedlineError::refused("output_would_overwrite_input", "安全限制：输出路径不能等于输入路径。请保留原件并指定新文件。")
+            .with_details(json!({ "path": target.display().to_string() })));
     }
     if target.exists() && !options.force {
         return Err(RedlineError::refused(
@@ -156,16 +153,12 @@ pub fn apply_docx(input: &str, patch: &Patch, output: &str, options: ApplyOption
 
 fn validate_patch(patch: &Patch) -> Result<()> {
     if patch.version != 1 {
-        return Err(RedlineError::input("bad_patch", "patch 的 version 必须是 1")
-            .with_details(json!({ "version": patch.version })));
+        return Err(RedlineError::input("bad_patch", "patch 的 version 必须是 1").with_details(json!({ "version": patch.version })));
     }
     if let Some(id) = &patch.action_id {
         if id != action::id::APPLY {
-            return Err(RedlineError::input(
-                "bad_patch",
-                format!("patch 的 action_id 必须是 {}", action::id::APPLY),
-            )
-            .with_details(json!({ "action_id": id })));
+            return Err(RedlineError::input("bad_patch", format!("patch 的 action_id 必须是 {}", action::id::APPLY))
+                .with_details(json!({ "action_id": id })));
         }
     }
     if patch.changes.is_empty() {
@@ -173,10 +166,7 @@ fn validate_patch(patch: &Patch) -> Result<()> {
     }
     for (index, change) in patch.changes.iter().enumerate() {
         if change.op != "replace_text" {
-            return Err(RedlineError::input(
-                "bad_patch",
-                format!("changes[{index}] 只支持 op=replace_text，收到 {}", change.op),
-            ));
+            return Err(RedlineError::input("bad_patch", format!("changes[{index}] 只支持 op=replace_text，收到 {}", change.op)));
         }
         if change.old.is_empty() {
             return Err(RedlineError::input("bad_patch", format!("changes[{index}] 的 old 不能为空")));
@@ -188,32 +178,19 @@ fn validate_patch(patch: &Patch) -> Result<()> {
 /// 找出下一个可用的修订 id。Word 要求同一份文档里 `w:id` 不重复。
 fn next_revision_id(document_xml: &str) -> u32 {
     let re = regex::Regex::new(r#"w:id="(\d+)""#).expect("常量正则");
-    re.captures_iter(document_xml)
-        .filter_map(|c| c.get(1)?.as_str().parse::<u32>().ok())
-        .max()
-        .unwrap_or(0)
-        + 1
+    re.captures_iter(document_xml).filter_map(|c| c.get(1)?.as_str().parse::<u32>().ok()).max().unwrap_or(0) + 1
 }
 
 /// 把唯一命中的那个 run 换成 `<w:del>旧</w:del><w:ins>新</w:ins>`。
 ///
 /// 不用带 lookahead 的正则（Rust 的 regex 不支持，而且那种写法在嵌套上很脆），
 /// 改成手工扫 run 边界 —— OOXML 里 `w:r` 不嵌套，扫描是可靠的。
-fn replace_single_run(
-    document_xml: &str,
-    old: &str,
-    new: &str,
-    revision_id: u32,
-    author: &str,
-    date: &str,
-) -> Result<String> {
+fn replace_single_run(document_xml: &str, old: &str, new: &str, revision_id: u32, author: &str, date: &str) -> Result<String> {
     let old_xml = xml_escape(old);
     let new_xml = xml_escape(new);
 
-    let hits: Vec<(usize, usize)> = find_runs(document_xml)
-        .into_iter()
-        .filter(|(start, end)| run_text_equals(&document_xml[*start..*end], &old_xml))
-        .collect();
+    let hits: Vec<(usize, usize)> =
+        find_runs(document_xml).into_iter().filter(|(start, end)| run_text_equals(&document_xml[*start..*end], &old_xml)).collect();
 
     if hits.len() != 1 {
         return Err(RedlineError::refused(
@@ -230,18 +207,12 @@ fn replace_single_run(
     let (start, end) = hits[0];
     let run = &document_xml[start..end];
     if count_text_nodes(run) != 1 {
-        return Err(RedlineError::refused(
-            "multi_text_run",
-            "该替换命中一个含多个文本节点的 Word run；为避免破坏格式，核心拒绝自动修改。",
-        ));
+        return Err(RedlineError::refused("multi_text_run", "该替换命中一个含多个文本节点的 Word run；为避免破坏格式，核心拒绝自动修改。"));
     }
 
     let deleted = rewrite_text_node(run, |attrs, _| format!("<w:delText{attrs}>{old_xml}</w:delText>"));
     let inserted = rewrite_text_node(run, |attrs, _| format!("<w:t{attrs}>{new_xml}</w:t>"));
-    let meta = format!(
-        r#" w:id="{revision_id}" w:author="{}" w:date="{date}""#,
-        xml_escape(author)
-    );
+    let meta = format!(r#" w:id="{revision_id}" w:author="{}" w:date="{date}""#, xml_escape(author));
     let revision = format!("<w:del{meta}>{deleted}</w:del><w:ins{meta}>{inserted}</w:ins>");
 
     let mut out = String::with_capacity(document_xml.len() + revision.len());
@@ -317,12 +288,18 @@ fn count_text_nodes(run: &str) -> usize {
 
 /// 把 run 里唯一那个 `<w:t ATTRS>内容</w:t>` 交给 `build` 重写，其余原样保留。
 fn rewrite_text_node(run: &str, build: impl Fn(&str, &str) -> String) -> String {
-    let Some(open) = run.find("<w:t") else { return run.to_string() };
-    let Some(gt_offset) = run[open..].find('>') else { return run.to_string() };
+    let Some(open) = run.find("<w:t") else {
+        return run.to_string();
+    };
+    let Some(gt_offset) = run[open..].find('>') else {
+        return run.to_string();
+    };
     let tag_end = open + gt_offset;
     let attrs = &run[open + "<w:t".len()..tag_end];
     let content_start = tag_end + 1;
-    let Some(close_offset) = run[content_start..].find("</w:t>") else { return run.to_string() };
+    let Some(close_offset) = run[content_start..].find("</w:t>") else {
+        return run.to_string();
+    };
     let content_end = content_start + close_offset;
     let content = &run[content_start..content_end];
 
@@ -336,7 +313,9 @@ fn rewrite_text_node(run: &str, build: impl Fn(&str, &str) -> String) -> String 
 /// 确保文档打开时处于「修订模式」，否则 Word 里看不到修订痕迹的提示条。
 fn ensure_track_revisions(parts: &mut Parts) -> Result<()> {
     const NAME: &str = "word/settings.xml";
-    let Some(raw) = parts.get(NAME) else { return Ok(()) };
+    let Some(raw) = parts.get(NAME) else {
+        return Ok(());
+    };
     let settings = String::from_utf8_lossy(raw).to_string();
     if settings.contains("<w:trackRevisions") {
         return Ok(());
@@ -376,10 +355,7 @@ fn same_file(a: &Path, b: &Path) -> bool {
 ///
 /// 自己算而不是引入日期库：只需要这一个格式，多一个依赖不值。
 fn now_rfc3339() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
     let (hour, minute, second) = (rem / 3600, (rem % 3600) / 60, rem % 60);
     let (year, month, day) = civil_from_days(days);

@@ -7,12 +7,36 @@
  */
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
-import type { RedlineHost } from "redline-core";
+import type { RedlineDocument, RedlineHost } from "redline-core";
+import { ACTION, call, errorText, type Snapshot } from "./core";
 
 export const tauriHost: RedlineHost = {
   async readFileBytes(path: string): Promise<ArrayBuffer> {
     const bytes = await invoke<number[]>("read_file_bytes", { path });
     return new Uint8Array(bytes).buffer;
+  },
+
+  async inspectDocument(path: string): Promise<RedlineDocument> {
+    const envelope = await call<Snapshot>(ACTION.inspect, { path });
+    if (!envelope.ok) {
+      throw new Error(errorText(envelope) ?? "无法生成语义影子");
+    }
+    return {
+      docId: envelope.source.sha256,
+      sourcePath: envelope.source.path,
+      sourceSha256: envelope.source.sha256,
+      format: envelope.format,
+      shadow: envelope.shadow,
+      units: envelope.units.map((unit, index) => ({
+        id: unit.id,
+        kind: unit.kind,
+        index,
+        label: unit.label,
+        text: unit.text,
+        textSha256: unit.textSha256,
+      })),
+      notes: envelope.units.flatMap((unit) => (unit.note ? [unit.note] : [])),
+    };
   },
 
   annotationStore: {

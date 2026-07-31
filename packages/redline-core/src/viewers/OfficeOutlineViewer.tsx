@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ViewerProps } from "./types";
 import type { RedlineUnit } from "../document-model";
+import { numberedUnitId, numberedUnitIndex } from "./util";
 
 /**
  * PPTX（以及旧版 .ppt/.doc/.xls 二进制格式）大纲提取。
@@ -51,7 +52,8 @@ export default function OfficeOutlineViewer({
         });
         setSlides(list);
         const units: RedlineUnit[] = list.map((s, i) => ({
-          id: String(i),
+          id: numberedUnitId("slide", i),
+          kind: "slide",
           index: i,
           label: s.label,
           text: s.text,
@@ -88,7 +90,7 @@ export default function OfficeOutlineViewer({
     );
   }
 
-  const activeIndex = Number(activeUnitId || 0);
+  const activeIndex = numberedUnitIndex(activeUnitId, "slide");
   const active = slides?.[activeIndex];
 
   return (

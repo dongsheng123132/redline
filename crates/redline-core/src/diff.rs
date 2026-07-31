@@ -36,19 +36,11 @@ pub fn diff_files(before_path: &str, after_path: &str) -> Result<DiffReport> {
 
 pub fn diff_snapshots(before: &Snapshot, after: &Snapshot) -> Result<DiffReport> {
     if before.format != after.format {
-        return Err(RedlineError::input(
-            "format_mismatch",
-            format!("只能对比同一格式的文件：{} vs {}", before.format, after.format),
-        )
-        .with_details(json!({ "before": before.format, "after": after.format })));
+        return Err(RedlineError::input("format_mismatch", format!("只能对比同一格式的文件：{} vs {}", before.format, after.format))
+            .with_details(json!({ "before": before.format, "after": after.format })));
     }
 
-    let mut ids: Vec<&str> = before
-        .units
-        .iter()
-        .chain(after.units.iter())
-        .map(|u| u.id.as_str())
-        .collect();
+    let mut ids: Vec<&str> = before.units.iter().chain(after.units.iter()).map(|u| u.id.as_str()).collect();
     ids.sort_unstable_by(|a, b| natural_order(a, b));
     ids.dedup();
 
@@ -80,13 +72,7 @@ pub fn diff_snapshots(before: &Snapshot, after: &Snapshot) -> Result<DiffReport>
         "changedUnits": changes.len(),
         "unchangedUnits": ids.len() - changes.len(),
     });
-    Ok(DiffReport {
-        format: before.format.clone(),
-        before: before.source.clone(),
-        after: after.source.clone(),
-        summary,
-        changes,
-    })
+    Ok(DiffReport { format: before.format.clone(), before: before.source.clone(), after: after.source.clone(), summary, changes })
 }
 
 /// `paragraph:2` 要排在 `paragraph:10` 前面。纯字典序会排成 10 在 2 前面，
@@ -112,20 +98,18 @@ mod tests {
 
     fn snapshot(format: &str, units: &[(&str, &str)]) -> Snapshot {
         Snapshot {
+            shadow: crate::shadow::Descriptor::for_source(format, "0"),
             format: format.into(),
-            source: inspect::SourceInfo {
-                path: "x".into(),
-                extension: format.into(),
-                bytes: 0,
-                sha256: "0".into(),
-            },
+            source: inspect::SourceInfo { path: "x".into(), extension: format.into(), bytes: 0, sha256: "0".into() },
             summary: json!({}),
             units: units
                 .iter()
                 .map(|(id, text)| inspect::Unit {
                     id: (*id).into(),
+                    kind: id.split_once(':').map(|(prefix, _)| prefix).unwrap_or("document").into(),
                     label: (*id).into(),
                     text: (*text).into(),
+                    text_sha256: inspect::sha256_hex(text.as_bytes()),
                     note: None,
                 })
                 .collect(),

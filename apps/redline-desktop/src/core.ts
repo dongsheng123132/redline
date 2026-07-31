@@ -9,6 +9,7 @@
  * `redline_core::dispatch` —— 跟 CLI 的 `redline call` 是同一个入口。
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { RedlineFormat, ShadowDescriptor } from "redline-core";
 
 /** 核心的统一输出信封。成功失败同一个形状，只有 ok 位不同。 */
 export type Envelope<T = Record<string, unknown>> =
@@ -62,8 +63,10 @@ export function errorText(envelope: Envelope<unknown>): string | null {
 
 export interface Unit {
   id: string;
+  kind: string;
   label: string;
   text: string;
+  textSha256: string;
   note?: string;
 }
 
@@ -75,7 +78,8 @@ export interface SourceInfo {
 }
 
 export interface Snapshot {
-  format: string;
+  shadow: ShadowDescriptor;
+  format: RedlineFormat;
   source: SourceInfo;
   summary: Record<string, unknown>;
   units: Unit[];

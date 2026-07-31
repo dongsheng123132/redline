@@ -12,20 +12,30 @@ use serde_json::{json, Value};
 use crate::error::{RedlineError, Result};
 use crate::format;
 use crate::ooxml::{all_text, count_tag, text_by_container, Parts};
+use crate::shadow;
 
 /// 快照里的一个可寻址单元。`id` 是 AI 和标注层共用的锚点，必须稳定。
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Unit {
     pub id: String,
+    /// paragraph / sheet / slide / page / document / entry。
+    pub kind: String,
     pub label: String,
     pub text: String,
+    /// unit 正文的内容身份，用于发现段落/页/工作表已经漂移。
+    pub text_sha256: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
 impl Unit {
-    fn new(id: impl Into<String>, label: impl Into<String>, text: impl Into<String>) -> Self {
-        Self { id: id.into(), label: label.into(), text: text.into(), note: None }
+    pub(crate) fn new(id: impl Into<String>, label: impl Into<String>, text: impl Into<String>) -> Self {
+        let id = id.into();
+        let text = text.into();
+        let kind = id.split_once(':').map(|(prefix, _)| prefix).unwrap_or("document").to_string();
+        let text_sha256 = sha256_hex(text.as_bytes());
+        Self { id, kind, label: label.into(), text, text_sha256, note: None }
     }
 }
 
@@ -39,6 +49,7 @@ pub struct SourceInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
+    pub shadow: shadow::Descriptor,
     pub format: String,
     pub source: SourceInfo,
     pub summary: Value,
@@ -48,6 +59,7 @@ pub struct Snapshot {
 impl Snapshot {
     pub fn to_json(&self) -> Value {
         json!({
+            "shadow": self.shadow,
             "format": self.format,
             "source": self.source,
             "summary": self.summary,
@@ -66,18 +78,13 @@ pub fn sha256_hex(data: &[u8]) -> String {
 /// 把用户给的路径规范化成绝对路径。不存在就直接报输入错误。
 pub fn resolve(path: &str) -> Result<PathBuf> {
     let raw = PathBuf::from(path);
-    let abs = if raw.is_absolute() {
-        raw
-    } else {
-        std::env::current_dir()?.join(raw)
-    };
+    let abs = if raw.is_absolute() { raw } else { std::env::current_dir()?.join(raw) };
     if !abs.is_file() {
         return Err(RedlineError::input("file_not_found", format!("文件不存在：{}", abs.display()))
             .with_details(json!({ "path": abs.display().to_string() })));
     }
     Ok(std::fs::canonicalize(&abs).map(crate::paths::strip_verbatim).unwrap_or(abs))
 }
-
 
 /// 解析一个本地文件成快照。这是 `document.inspect` 的全部实现。
 pub fn inspect(path: &str) -> Result<Snapshot> {
@@ -86,24 +93,23 @@ pub fn inspect(path: &str) -> Result<Snapshot> {
     let extension = format::extension_of(file_name);
 
     if let Some(reason) = format::refusal_reason(&extension) {
-        return Err(RedlineError::refused("legacy_binary_format", reason)
-            .with_details(json!({ "extension": extension })));
+        return Err(RedlineError::refused("legacy_binary_format", reason).with_details(json!({ "extension": extension })));
     }
 
     let spec = format::lookup(&extension).ok_or_else(|| {
         RedlineError::input(
             "unsupported_format",
-            format!("暂不支持 .{}；用 `redline formats` 看当前支持的全部格式。", if extension.is_empty() { "（无扩展名）".into() } else { extension.clone() }),
+            format!(
+                "暂不支持 .{}；用 `redline formats` 看当前支持的全部格式。",
+                if extension.is_empty() { "（无扩展名）".into() } else { extension.clone() }
+            ),
         )
         .with_details(json!({ "extension": extension }))
     })?;
 
     if !spec.caps.inspect {
-        return Err(RedlineError::input(
-            "format_not_inspectable",
-            format!("{} 只能预览标注，无法解析成结构化快照喂给 AI。", spec.label),
-        )
-        .with_details(json!({ "format": spec.id })));
+        return Err(RedlineError::input("format_not_inspectable", format!("{} 只能预览标注，无法解析成结构化快照喂给 AI。", spec.label))
+            .with_details(json!({ "format": spec.id })));
     }
 
     let data = std::fs::read(&source)?;
@@ -122,25 +128,20 @@ pub fn inspect(path: &str) -> Result<Snapshot> {
         "text" | "html" => plain(&data),
         "archive" | "archive-external" => crate::archive::summarize(&source, spec)?,
         other => {
-            return Err(RedlineError::internal(
-                "inspect_not_wired",
-                format!("格式 {other} 在注册表里声明了 inspect 能力，但核心没接实现"),
-            ))
+            return Err(RedlineError::internal("inspect_not_wired", format!("格式 {other} 在注册表里声明了 inspect 能力，但核心没接实现")))
         }
     };
 
-    Ok(Snapshot { format: spec.id.to_string(), source: source_info, summary, units })
+    let shadow = shadow::Descriptor::for_source(spec.id, &source_info.sha256);
+    Ok(Snapshot { shadow, format: spec.id.to_string(), source: source_info, summary, units })
 }
 
 fn docx(path: &Path) -> Result<(Value, Vec<Unit>)> {
     let parts = Parts::read(path)?;
     let document = parts.require_str("word/document.xml")?;
     let paragraphs = text_by_container(&document, "p", "t")?;
-    let units = paragraphs
-        .iter()
-        .enumerate()
-        .map(|(i, text)| Unit::new(format!("paragraph:{}", i + 1), format!("段落 {}", i + 1), text))
-        .collect();
+    let units =
+        paragraphs.iter().enumerate().map(|(i, text)| Unit::new(format!("paragraph:{}", i + 1), format!("段落 {}", i + 1), text)).collect();
     let summary = json!({
         "paragraphs": paragraphs.len(),
         "tables": count_tag(&document, "tbl")?,
@@ -153,20 +154,13 @@ fn docx(path: &Path) -> Result<(Value, Vec<Unit>)> {
 
 fn pptx(path: &Path) -> Result<(Value, Vec<Unit>)> {
     let parts = Parts::read(path)?;
-    let mut slides: Vec<(u32, String)> = parts
-        .names()
-        .filter_map(|name| slide_number(name).map(|n| (n, name.to_string())))
-        .collect();
+    let mut slides: Vec<(u32, String)> = parts.names().filter_map(|name| slide_number(name).map(|n| (n, name.to_string()))).collect();
     slides.sort_by_key(|(n, _)| *n);
 
     let mut units = Vec::with_capacity(slides.len());
     for (index, (_, name)) in slides.iter().enumerate() {
         let xml = parts.require_str(name)?;
-        units.push(Unit::new(
-            format!("slide:{}", index + 1),
-            format!("幻灯片 {}", index + 1),
-            all_text(&xml, "t")?,
-        ));
+        units.push(Unit::new(format!("slide:{}", index + 1), format!("幻灯片 {}", index + 1), all_text(&xml, "t")?));
     }
     Ok((json!({ "slides": units.len() }), units))
 }
@@ -196,11 +190,7 @@ fn xlsx(path: &Path) -> Result<(Value, Vec<Unit>)> {
             continue;
         };
         let cells = sheet_cells(std::str::from_utf8(raw).unwrap_or_default(), &shared)?;
-        units.push(Unit::new(
-            format!("sheet:{}", index + 1),
-            format!("工作表 {name}"),
-            cells.join("\n"),
-        ));
+        units.push(Unit::new(format!("sheet:{}", index + 1), format!("工作表 {name}"), cells.join("\n")));
     }
     Ok((json!({ "sheets": units.len() }), units))
 }
@@ -293,12 +283,7 @@ fn sheet_cells(xml: &str, shared: &[String]) -> Result<Vec<String>> {
                         in_cell = false;
                         // t="s" 表示 v 里存的是 sharedStrings 的下标，不是字面值
                         let display = if kind == "s" {
-                            value
-                                .trim()
-                                .parse::<usize>()
-                                .ok()
-                                .and_then(|i| shared.get(i).cloned())
-                                .unwrap_or_else(|| value.clone())
+                            value.trim().parse::<usize>().ok().and_then(|i| shared.get(i).cloned()).unwrap_or_else(|| value.clone())
                         } else if kind == "inlineStr" {
                             inline.clone()
                         } else {
@@ -323,14 +308,11 @@ fn sheet_cells(xml: &str, shared: &[String]) -> Result<Vec<String>> {
 }
 
 fn attr(e: &quick_xml::events::BytesStart, name: &str) -> Result<Option<String>> {
-    Ok(e.try_get_attribute(name)?
-        .map(|a| a.unescape_value().map(|v| v.to_string()))
-        .transpose()?)
+    Ok(e.try_get_attribute(name)?.map(|a| a.unescape_value().map(|v| v.to_string())).transpose()?)
 }
 
 fn pdf(path: &Path) -> Result<(Value, Vec<Unit>)> {
-    let doc = lopdf::Document::load(path)
-        .map_err(|e| RedlineError::input("bad_pdf", format!("PDF 解析失败：{e}")))?;
+    let doc = lopdf::Document::load(path).map_err(|e| RedlineError::input("bad_pdf", format!("PDF 解析失败：{e}")))?;
     let pages = doc.get_pages();
     let mut units = Vec::with_capacity(pages.len());
     let mut text_pages = 0usize;
@@ -388,5 +370,14 @@ mod tests {
     fn 空单元格不进快照() {
         let xml = r#"<worksheet><sheetData><row><c r="A1"/><c r="B1"><v>1</v></c></row></sheetData></worksheet>"#;
         assert_eq!(sheet_cells(xml, &[]).unwrap(), vec!["B1=1"]);
+    }
+
+    #[test]
+    fn 影文档单元带类型和稳定文本哈希() {
+        let first = Unit::new("paragraph:7", "段落 7", "同一段文字");
+        let second = Unit::new("paragraph:7", "段落 7", "同一段文字");
+        assert_eq!(first.kind, "paragraph");
+        assert_eq!(first.text_sha256, second.text_sha256);
+        assert_eq!(first.text_sha256.len(), 64);
     }
 }

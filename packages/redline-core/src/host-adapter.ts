@@ -5,6 +5,7 @@
  * 持久化、进程通信……）。这三件事宿主各自实现一遍，内核只认这个接口，
  * 换宿主时（opencodex → MCP Server → 以后随便什么）viewer/annotation 代码一行都不用改。
  */
+import type { RedlineDocument } from "./document-model";
 
 /** 标注持久化。宿主决定存哪——opencodex 走现成的 kv.rs，MCP Server 可以是本地 json/sqlite。 */
 export interface RedlineAnnotationStore {
@@ -19,6 +20,11 @@ export interface RedlineHost {
    * opencodex 里是 `fetch(convertFileSrc(path))`，MCP Server 里可以直接 `fs.readFile`。
    */
   readFileBytes(path: string): Promise<ArrayBuffer>;
+  /**
+   * 可选：调用宿主的 `document.inspect`，拿到与原件哈希绑定的语义影子。
+   * viewer 仍负责视觉渲染，但 unit ID、文字和内容哈希以这个结果为准。
+   */
+  inspectDocument?: (path: string) => Promise<RedlineDocument>;
   /** 标注持久化。 */
   annotationStore: RedlineAnnotationStore;
   /**
@@ -37,10 +43,11 @@ export interface RedlineHost {
 }
 
 /** 标注存储的 key 约定：按文件路径的稳定 hash 存，避免路径里的中文/特殊字符污染 key。 */
-export function annotationStoreKey(sourcePath: string): string {
+export function annotationStoreKey(sourcePath: string, sourceSha256?: string): string {
+  const identity = sourceSha256 ? `${sourcePath}\0${sourceSha256}` : sourcePath;
   let h = 0;
-  for (let i = 0; i < sourcePath.length; i++) {
-    h = (Math.imul(31, h) + sourcePath.charCodeAt(i)) | 0;
+  for (let i = 0; i < identity.length; i++) {
+    h = (Math.imul(31, h) + identity.charCodeAt(i)) | 0;
   }
   return `redline:annot:${(h >>> 0).toString(36)}`;
 }

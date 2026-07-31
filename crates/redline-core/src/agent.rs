@@ -112,6 +112,8 @@ pub struct DispatchReport {
 pub struct DispatchRequest<'a> {
     pub agent: &'a str,
     pub source: &'a str,
+    /// 生成标注/影文档时看到的原件哈希。给了就必须与派发瞬间的源文件一致。
+    pub expected_source_sha256: Option<String>,
     pub output: &'a str,
     pub annotations: Vec<Annotation>,
     pub instruction: Option<String>,
@@ -122,13 +124,27 @@ pub struct DispatchRequest<'a> {
 
 pub fn dispatch(request: DispatchRequest<'_>) -> Result<DispatchReport> {
     let spec = lookup(request.agent).ok_or_else(|| {
-        RedlineError::input("unknown_agent", format!("不认识的 agent：{}", request.agent)).with_details(
-            json!({ "known": AGENTS.iter().map(|a| a.id).collect::<Vec<_>>() }),
-        )
+        RedlineError::input("unknown_agent", format!("不认识的 agent：{}", request.agent))
+            .with_details(json!({ "known": AGENTS.iter().map(|a| a.id).collect::<Vec<_>>() }))
     })?;
 
     let source = inspect::resolve(request.source)?;
     let source_display = paths::display(&source);
+
+    if let Some(expected) = request.expected_source_sha256.as_deref() {
+        let actual = inspect::sha256_hex(&std::fs::read(&source)?);
+        if actual != expected {
+            return Err(RedlineError::refused(
+                "stale_shadow",
+                "源文件在预览/标注之后已经改变；旧影文档和标注不能继续派发。请重新打开文件确认。",
+            )
+            .with_details(json!({
+                "path": source_display,
+                "expectedSha256": expected,
+                "actualSha256": actual,
+            })));
+        }
+    }
 
     let output = std::path::PathBuf::from(request.output);
     let output = if output.is_absolute() { output } else { std::env::current_dir()?.join(output) };
@@ -207,8 +223,7 @@ fn enrich(source: &str, annotations: Vec<Annotation>) -> Result<Vec<Annotation>>
         .map(|mut annotation| {
             if annotation.unit_text.is_none() {
                 if let Some(id) = &annotation.unit_id {
-                    annotation.unit_text =
-                        snapshot.units.iter().find(|u| &u.id == id).map(|u| u.text.clone());
+                    annotation.unit_text = snapshot.units.iter().find(|u| &u.id == id).map(|u| u.text.clone());
                 }
             }
             annotation
@@ -220,12 +235,7 @@ fn enrich(source: &str, annotations: Vec<Annotation>) -> Result<Vec<Annotation>>
 ///
 /// 刻意写得像一张工单而不是一句闲聊：agent 拿到的是明确的输入路径、输出路径、
 /// 逐条标注、以及「不许动源文件」这条硬约束。
-fn build_prompt(
-    source: &str,
-    output: &str,
-    annotations: &[Annotation],
-    instruction: Option<&str>,
-) -> String {
+fn build_prompt(source: &str, output: &str, annotations: &[Annotation], instruction: Option<&str>) -> String {
     let mut prompt = String::new();
     prompt.push_str("你在给 Redline 当文档修改后端。请严格按下面的工单执行。\n\n");
     prompt.push_str(&format!("源文件（只读，绝对不要修改它）：{source}\n"));
@@ -328,16 +338,13 @@ fn run(spec: &AgentSpec, prompt: &str, cwd: &std::path::Path, timeout_secs: u64)
     let stdout = stdout_thread.join().unwrap_or_default();
     let stderr = stderr_thread.join().unwrap_or_default();
 
-    Ok(Outcome {
-        exit_code: status.and_then(|s| s.code()),
-        timed_out,
-        stdout: tail(&stdout),
-        stderr: tail(&stderr),
-    })
+    Ok(Outcome { exit_code: status.and_then(|s| s.code()), timed_out, stdout: tail(&stdout), stderr: tail(&stderr) })
 }
 
 fn drain(pipe: &mut Option<impl Read>) -> String {
-    let Some(reader) = pipe else { return String::new() };
+    let Some(reader) = pipe else {
+        return String::new();
+    };
     let mut buffer = Vec::new();
     let _ = reader.read_to_end(&mut buffer);
     String::from_utf8_lossy(&buffer).to_string()
@@ -417,11 +424,7 @@ mod tests {
     use super::*;
 
     fn annotation(unit: &str, note: &str, text: &str) -> Annotation {
-        Annotation {
-            unit_id: Some(unit.into()),
-            note: note.into(),
-            unit_text: Some(text.into()),
-        }
+        Annotation { unit_id: Some(unit.into()), note: note.into(), unit_text: Some(text.into()) }
     }
 
     #[test]
@@ -453,6 +456,7 @@ mod tests {
         let err = dispatch(DispatchRequest {
             agent: "gemini",
             source: "a.docx",
+            expected_source_sha256: None,
             output: "b.docx",
             annotations: vec![],
             instruction: None,
@@ -462,6 +466,37 @@ mod tests {
         })
         .unwrap_err();
         assert_eq!(err.code, "unknown_agent");
+    }
+
+    #[test]
+    fn 源文件变化后拒绝旧影文档派发() {
+        let unique = format!(
+            "redline-stale-shadow-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        );
+        let source = std::env::temp_dir().join(format!("{unique}.txt"));
+        let output = std::env::temp_dir().join(format!("{unique}-out.txt"));
+        std::fs::write(&source, "新内容").unwrap();
+
+        let source_text = source.to_string_lossy().to_string();
+        let output_text = output.to_string_lossy().to_string();
+        let err = dispatch(DispatchRequest {
+            agent: "codex",
+            source: &source_text,
+            expected_source_sha256: Some("旧哈希".into()),
+            output: &output_text,
+            annotations: vec![],
+            instruction: None,
+            cwd: None,
+            timeout_secs: 1,
+            dry_run: true,
+        })
+        .unwrap_err();
+
+        let _ = std::fs::remove_file(&source);
+        assert_eq!(err.code, "stale_shadow");
+        assert_eq!(err.class, crate::error::ErrorClass::Refused);
     }
 
     #[test]

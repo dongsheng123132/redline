@@ -1,0 +1,4 @@
+# 仓库历史代码偏紧凑。把格式风格写死，避免不同终端运行 cargo fmt 后反复大面积漂移。
+max_width = 140
+use_small_heuristics = "Max"
+single_line_let_else_max_width = 140
