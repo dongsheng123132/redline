@@ -28,6 +28,7 @@ ShadowDoc is a companion specification to
 
 ## Current material
 
+- [Manifesto](./MANIFESTO.md) / [影文档宣言（中文）](./MANIFESTO.zh-CN.md)
 - [Normative Core 0.1 Working Draft](./SPEC.md)
 - [Core 0.1 JSON Schema](./schema/core.schema.json)
 - [Conformance fixtures](./conformance/manifest.json)
