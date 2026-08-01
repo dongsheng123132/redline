@@ -128,6 +128,13 @@ pub fn extract(path: &str, dest: &str, overwrite: bool) -> Result<Vec<String>> {
 /// 拒绝：绝对路径、盘符、`..`、Windows 保留的 UNC/前缀。通过的路径保证解不出目标目录。
 fn safe_relative_path(name: &str) -> Result<PathBuf> {
     let normalized = name.replace('\\', "/");
+    let bytes = normalized.as_bytes();
+    let windows_drive = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    // `std::path::Component` follows the build host. A Windows drive or UNC
+    // path must therefore be rejected explicitly when CI runs on Linux/macOS.
+    if normalized.starts_with('/') || windows_drive {
+        return Err(unsafe_path(name));
+    }
     let candidate = PathBuf::from(&normalized);
     let mut safe = PathBuf::new();
     for component in candidate.components() {
@@ -135,11 +142,7 @@ fn safe_relative_path(name: &str) -> Result<PathBuf> {
             Component::Normal(part) => safe.push(part),
             Component::CurDir => {}
             Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                return Err(RedlineError::refused(
-                    "unsafe_archive_path",
-                    format!("压缩包里有会写到目标目录外的路径：{name}。Redline 拒绝解包这一条。"),
-                )
-                .with_details(json!({ "entry": name })));
+                return Err(unsafe_path(name));
             }
         }
     }
@@ -147,6 +150,11 @@ fn safe_relative_path(name: &str) -> Result<PathBuf> {
         return Err(RedlineError::refused("unsafe_archive_path", format!("压缩包条目名非法：{name}")));
     }
     Ok(safe)
+}
+
+fn unsafe_path(name: &str) -> RedlineError {
+    RedlineError::refused("unsafe_archive_path", format!("压缩包里有会写到目标目录外的路径：{name}。Redline 拒绝解包这一条。"))
+        .with_details(json!({ "entry": name }))
 }
 
 /// 给 `document.inspect` 用：把压缩包摊成 summary + units。
@@ -222,7 +230,16 @@ mod tests {
 
     #[test]
     fn zip_slip_被拒绝() {
-        for evil in ["../evil.txt", "a/../../evil.txt", "/etc/passwd", "C:\\Windows\\evil.dll", "..\\evil"] {
+        for evil in [
+            "../evil.txt",
+            "a/../../evil.txt",
+            "/etc/passwd",
+            "C:\\Windows\\evil.dll",
+            "c:drive-relative.txt",
+            "\\\\server\\share\\evil.dll",
+            "//server/share/evil.dll",
+            "..\\evil",
+        ] {
             let err = safe_relative_path(evil).unwrap_err();
             assert_eq!(err.code, "unsafe_archive_path", "{evil} 应该被拒绝");
         }

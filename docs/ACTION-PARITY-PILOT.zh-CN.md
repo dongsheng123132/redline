@@ -99,8 +99,9 @@ Redline 不是只验证了顺利路径，也直接推动了上游修正：
 1. 9 个 Action 乘所有 Surface 会生成虚假 GUI/MCP 覆盖，因此 SDK 增加了 per-Action Surface scope。
 2. scope 一度能遗漏全局必需 Surface，因此 SDK 现在在两种注册顺序下都快速失败，渐进迁移必须写明 optional 与排除理由。
 3. `doctor` 目前仍把 Registry 与生成 TypeScript 中相同的 ID 报成漂移风险。这是误报，说明 Doctor 下一步必须读取 Agent Profile 的 `generated_paths` 并排除生成物。
+4. 第一轮 Linux CI 发现 `C:/Windows/evil.dll` 只会在 Windows 主机上被 `Path::components()` 识别成绝对路径。现在归档安全闸门会在所有平台显式拒绝 Windows 盘符、UNC、Unix 根路径与父目录跳转。
 
-第三点应在上游修复后加入回归测试。真实项目的作用正是让工具链的错误比开发者更早暴露。
+第三点应在上游修复后加入回归测试。第四点证明干净跨平台 CI 不只是发布手续，它能找到单平台开发机看不到的安全问题。真实项目的作用正是让工具链的错误比开发者更早暴露。
 
 ## 尚未完成与不能夸大的部分
 
