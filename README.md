@@ -95,6 +95,7 @@ redline/
 | 冷启动、渠道、演示与内容计划 | [传播计划](./docs/传播计划.md) |
 | 核心分层和数据流 | [架构](./docs/架构.md) |
 | Action schema | [动作契约](./docs/动作契约.md) |
+| ActionParity 真实接入数据与证据 | [ActionParity 可执行接入报告](./docs/ACTION-PARITY-PILOT.zh-CN.md) |
 | 为什么做出这些决定 | [决策记录](./docs/决策记录.md) |
 
 ## 一条规矩：业务动作只实现一次
@@ -102,12 +103,13 @@ redline/
 影核协议（ActionParity）第 13 条。`crates/redline-core` 是唯一实现，三个界面都是它的**调用方**：
 
 ```
-             ┌─ GUI    (Tauri command `redline_call`)
-dispatch() ──┼─ CLI    (redline call / 各子命令)
-             └─ MCP    (计划中)
+Action Registry ─┬─ GUI    (`action-parity-tauri` + generated client)
+                 ├─ CLI    (redline call / 各子命令)
+                 └─ MCP    (尚未声明，计划中)
 ```
 
-`redline actions` 打印的就是那张绑定清单。任何一个界面想「自己再算一下」都会在这张表上露馅。
+`crates/redline-core/src/registry.rs` 是唯一注册处，并生成 Manifest、CLI help、
+TypeScript Action client 和证据绑定。任何一个界面想「自己再算一下」都会在漂移或运行证据检查里露馅。
 
 这不是洁癖：这个项目**已经漂过一次**——TS 的注册表把 `.doc` 当 docx 渲染（打开老文档看到乱码，然后以为是 Redline 坏了），Python CLI 那份明确拒绝。漂移不会自己报错，只会在某个用户打开一个 `.doc` 时暴露。现在 Rust 是唯一真相源，`node scripts/check-format-parity.mjs` 守着两边一致。
 

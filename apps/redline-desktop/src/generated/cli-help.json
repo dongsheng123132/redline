@@ -1,0 +1,300 @@
+{
+  "actions": [
+    {
+      "description": "Return supported AI coding agents and their local availability.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "agent.catalog",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "List AI agents"
+    },
+    {
+      "description": "Send annotations and an immutable source reference to an AI agent that writes a new output file.",
+      "effects": {
+        "audit_required": true,
+        "class": "external",
+        "confirmation": "conditional",
+        "notes": "The agent writes a new output path; Redline never modifies the source.",
+        "reversible": true,
+        "risk": "medium"
+      },
+      "id": "agent.dispatch",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "annotations": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "expectedSourceSha256": {
+            "type": "string"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "timeoutSecs": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent",
+          "source",
+          "output"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Dispatch AI agent"
+    },
+    {
+      "description": "Extract an archive into an explicit destination without changing the archive.",
+      "effects": {
+        "audit_required": true,
+        "class": "write",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "archive.extract",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "dest": {
+            "type": "string"
+          },
+          "overwrite": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "dest"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Extract archive"
+    },
+    {
+      "description": "List archive entries without extracting files.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "archive.list",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "List archive"
+    },
+    {
+      "description": "Write an explicit patch to a new DOCX with native Track Changes; never overwrite the source.",
+      "effects": {
+        "audit_required": true,
+        "class": "write",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "document.apply-track-changes",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "force": {
+            "type": "boolean"
+          },
+          "input": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "input",
+          "patch",
+          "output"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Apply tracked changes"
+    },
+    {
+      "description": "Compare two same-format document projections without changing either file.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "document.diff",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "before": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Compare documents"
+    },
+    {
+      "description": "Return the canonical format and capability registry.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "document.formats",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "List formats"
+    },
+    {
+      "description": "Parse a local file into a source-hash-bound ShadowDoc projection.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "document.inspect",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Inspect document"
+    },
+    {
+      "description": "Check whether a local file can be parsed without changing it.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "id": "document.verify",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Verify document"
+    }
+  ],
+  "application": {
+    "description": "Universal document preview, annotation, diff, and AI handoff layer.",
+    "id": "org.redline.desktop",
+    "name": "Redline",
+    "source": "https://github.com/dongsheng123132/redline",
+    "version": "0.1.0"
+  },
+  "format": "action-parity.cli-help/v1",
+  "invocation": "call <action-id> --input-json <json> --json"
+}

@@ -23,14 +23,17 @@
 `crates/redline-core` 是唯一实现。GUI / CLI / MCP 都是它的**调用方**：
 
 ```
-                    ┌─ GUI  →  Tauri command `redline_call`
-dispatch(id, params)┼─ CLI  →  redline <子命令> / redline call
-                    └─ MCP  →  （待实现）
+Action Registry ─┬─ GUI  →  `action-parity-tauri` → generated TS client
+                 ├─ CLI  →  redline <子命令> / redline call
+                 └─ MCP  →  （未声明、未生成，待实现）
 ```
 
 **新增任何业务能力，先在核心加 Action，再在界面加调用方。**
 如果你发现自己在界面层写「判断扩展名」「算 diff」「决定能不能覆盖文件」——停下，
 那是核心的活。`redline actions` 打印的就是绑定清单，漏登记的动作任何界面都调不到。
+
+Action 的唯一注册处是 `crates/redline-core/src/registry.rs`。Manifest、CLI help、
+GUI Action 常量和证据绑定都是生成物；不要手改 `apps/redline-desktop/src/generated/`。
 
 反例（真实发生过）：TS 注册表把 `.doc` 当 docx 渲染，Rust 明确拒绝。
 用户打开老文档看到乱码，会以为是 Redline 坏了。漂移不会自己报错。
@@ -68,8 +71,8 @@ dispatch(id, params)┼─ CLI  →  redline <子命令> / redline call
 
 ```
 crates/redline-core/src/
-  lib.rs        ★ dispatch() 绑定清单 —— 找任何动作从这里进
-  action.rs       Action ID 常量 + 输出信封
+  registry.rs   ★ Action ID + Schema + 风险 + handler + Surface 的唯一注册处
+  lib.rs          无界面业务 handler；dispatch 也回到同一个 Registry
   format.rs     ★ 格式注册表（单一真相源）—— 新增格式只改这里
   inspect.rs      docx/xlsx/pptx/pdf/text/archive → 统一快照
   archive.rs      压缩包 list/extract，zip-slip 防护
@@ -83,7 +86,7 @@ crates/redline-core/src/
 crates/redline-cli/src/lib.rs     CLI 面（薄壳，零业务逻辑）
 apps/redline-desktop/
   src-tauri/src/main.rs           单 exe 入口：按参数分流 GUI / CLI
-  src-tauri/src/lib.rs            Tauri command：只有 redline_call 一扇门通业务
+  src-tauri/src/lib.rs            Tauri：只有 action_parity_call 一扇门通业务
   src/core.ts                     前端通向核心的唯一一扇门
   src/App.tsx                     三栏工作台
   src/host.ts                     RedlineHost 的 Tauri 实现（宿主能力，非业务）
@@ -95,6 +98,26 @@ docs/                             产品战略 / 开源商业化 / 功能代码�
 spec/shadowdoc/                   ShadowDoc 开放规范孵化入口
 bin/redline.py                    ⚠️ 已废弃，别引用，别改
 ```
+
+## AI 编程工具开工捷径
+
+Claude Code、Codex、Hermes 或其他 Agent 不必先读完整规范。进入仓库后先运行：
+
+```bash
+pnpm exec action-parity context . --json
+```
+
+它会直接返回唯一可编辑 Registry、9 个 Action、真实 Surface、生成物和完成命令。
+动作或绑定修改后按顺序运行：
+
+```bash
+pnpm run action-parity:generate
+pnpm run action-parity:check
+pnpm run action-parity:verify
+```
+
+最后一个命令会真实执行 9 条 CLI 和 4 条 Tauri GUI 绑定证据。只看到 Manifest
+通过不算完成；报告里的 `verified` 必须为 `true`。
 
 ## 常用命令
 
@@ -110,7 +133,8 @@ pnpm --filter redline-desktop tauri build # 出 exe + NSIS 安装包
 cd apps/redline-desktop && npx tsc --noEmit   # 前端类型检查
 ```
 
-**提交前这三条必须全绿**：`cargo test --workspace`、`node scripts/check-format-parity.mjs`、`npx tsc --noEmit`。
+**提交前必须全绿**：根目录 `pnpm run check`，再到 `apps/redline-desktop` 运行
+`npx tsc --noEmit`。前者已包含全工作区测试、生成漂移和可执行绑定证据。
 
 ## 已经踩过的坑（别再踩一遍）
 

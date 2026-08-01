@@ -16,7 +16,7 @@
 use std::io::{IsTerminal, Write};
 
 use clap::{Parser, Subcommand};
-use redline_core::{action_id, dispatch};
+use redline_core::{action_id, dispatch_surface};
 use serde_json::{json, Value};
 
 /// 用法错误（参数拼不出合法请求）。沿用 sysexits.h 的 EX_USAGE。
@@ -44,6 +44,10 @@ struct Cli {
     /// 结果同时写一份到文件（stdout 照常输出）
     #[arg(long, global = true, value_name = "FILE")]
     out: Option<String>,
+
+    /// 让调用方提供可跨 GUI / CLI / 日志关联的执行 ID；不提供时核心自动生成。
+    #[arg(long, global = true, value_name = "ID")]
+    execution_id: Option<String>,
 
     #[command(subcommand)]
     command: Command,
@@ -124,6 +128,9 @@ enum Command {
         /// 参数 JSON，例如 '{"path":"a.docx"}'
         #[arg(long, default_value = "{}")]
         params: String,
+        /// 显式确认需要确认的动作；安全闸门在核心执行，不能由界面绕过。
+        #[arg(long)]
+        confirmed: bool,
     },
 }
 
@@ -145,7 +152,7 @@ enum ArchiveCommand {
 /// 合并后的单 exe）决定怎么收尾。
 pub fn run() -> i32 {
     let cli = Cli::parse();
-    let (action, params, audit_out) = match build_request(&cli.command) {
+    let (action, params, audit_out, confirmed) = match build_request(&cli.command) {
         Ok(request) => request,
         Err(message) => {
             eprintln!("{message}");
@@ -156,7 +163,7 @@ pub fn run() -> i32 {
     // 本地动作（不进核心的元信息查询）单独处理：绑定清单本身不是业务动作。
     let envelope = match action {
         LOCAL_ACTIONS => local_actions(),
-        _ => dispatch(action, &params),
+        _ => dispatch_surface("cli", action, params, confirmed, cli.execution_id.clone()),
     };
 
     let ok = envelope["ok"].as_bool().unwrap_or(false);
@@ -198,16 +205,16 @@ pub fn is_cli_invocation(args: &[String]) -> bool {
 /// 属于元信息，不是业务动作。
 const LOCAL_ACTIONS: &str = "__local.actions";
 
-fn build_request(command: &Command) -> Result<(&'static str, Value, Option<String>), String> {
+fn build_request(command: &Command) -> Result<(&'static str, Value, Option<String>, bool), String> {
     Ok(match command {
-        Command::Inspect { file } => (action_id::INSPECT, json!({ "path": file }), None),
-        Command::Verify { file } => (action_id::VERIFY, json!({ "path": file }), None),
-        Command::Formats => (action_id::FORMATS, json!({}), None),
-        Command::Actions => (LOCAL_ACTIONS, json!({}), None),
-        Command::Diff { before, after } => (action_id::DIFF, json!({ "before": before, "after": after }), None),
-        Command::Archive(ArchiveCommand::List { file }) => (action_id::ARCHIVE_LIST, json!({ "path": file }), None),
+        Command::Inspect { file } => (action_id::INSPECT, json!({ "path": file }), None, false),
+        Command::Verify { file } => (action_id::VERIFY, json!({ "path": file }), None, false),
+        Command::Formats => (action_id::FORMATS, json!({}), None, false),
+        Command::Actions => (LOCAL_ACTIONS, json!({}), None, false),
+        Command::Diff { before, after } => (action_id::DIFF, json!({ "before": before, "after": after }), None, false),
+        Command::Archive(ArchiveCommand::List { file }) => (action_id::ARCHIVE_LIST, json!({ "path": file }), None, false),
         Command::Archive(ArchiveCommand::Extract { file, dest, overwrite }) => {
-            (action_id::ARCHIVE_EXTRACT, json!({ "path": file, "dest": dest, "overwrite": overwrite }), None)
+            (action_id::ARCHIVE_EXTRACT, json!({ "path": file, "dest": dest, "overwrite": overwrite }), None, true)
         }
         Command::Apply { input, patch, output, author, audit, force } => {
             let raw = std::fs::read_to_string(patch).map_err(|e| format!("读不到 patch 文件 {patch}：{e}"))?;
@@ -222,9 +229,10 @@ fn build_request(command: &Command) -> Result<(&'static str, Value, Option<Strin
                     "force": force,
                 }),
                 audit.clone(),
+                true,
             )
         }
-        Command::Agents => (action_id::AGENT_CATALOG, json!({}), None),
+        Command::Agents => (action_id::AGENT_CATALOG, json!({}), None, false),
         Command::Send { file, agent, output, notes, instruction, cwd, timeout, dry_run } => {
             let annotations = notes
                 .iter()
@@ -247,12 +255,13 @@ fn build_request(command: &Command) -> Result<(&'static str, Value, Option<Strin
                     "dryRun": dry_run,
                 }),
                 None,
+                true,
             )
         }
-        Command::Call { action, params } => {
+        Command::Call { action, params, confirmed } => {
             let parsed: Value = serde_json::from_str(params).map_err(|e| format!("--params 不是合法 JSON：{e}"))?;
             // action id 由核心校验，未知的会拿到 unknown_action 错误信封（退出码 1）
-            (Box::leak(action.clone().into_boxed_str()), parsed, None)
+            (Box::leak(action.clone().into_boxed_str()), parsed, None, *confirmed)
         }
     })
 }
@@ -262,10 +271,7 @@ fn local_actions() -> Value {
         "ok": true,
         "version": 1,
         "action_id": LOCAL_ACTIONS,
-        "actions": redline_core::ACTIONS
-            .iter()
-            .map(|(id, description)| json!({ "id": id, "description": description }))
-            .collect::<Vec<_>>(),
+        "actions": redline_core::action_catalog(),
     })
 }
 
@@ -326,10 +332,12 @@ fn print_human(envelope: &Value) {
         return;
     }
 
+    let payload = envelope.get("result").unwrap_or(envelope);
+
     match envelope["action_id"].as_str().unwrap_or_default() {
         action_id::FORMATS => {
             println!("{:<18} {:<24} {}", "格式", "扩展名", "能力");
-            for spec in envelope["formats"].as_array().unwrap_or(&vec![]) {
+            for spec in payload["formats"].as_array().unwrap_or(&vec![]) {
                 let extensions = spec["extensions"]
                     .as_array()
                     .map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(" "))
@@ -343,14 +351,14 @@ fn print_human(envelope: &Value) {
             }
         }
         LOCAL_ACTIONS => {
-            for item in envelope["actions"].as_array().unwrap_or(&vec![]) {
+            for item in payload["actions"].as_array().unwrap_or(&vec![]) {
                 println!("{:<32} {}", item["id"].as_str().unwrap_or("?"), item["description"].as_str().unwrap_or(""));
             }
         }
         action_id::INSPECT | action_id::VERIFY => {
-            println!("格式：{}", envelope["format"].as_str().unwrap_or("?"));
-            println!("摘要：{}", envelope["summary"]);
-            if let Some(units) = envelope["units"].as_array() {
+            println!("格式：{}", payload["format"].as_str().unwrap_or("?"));
+            println!("摘要：{}", payload["summary"]);
+            if let Some(units) = payload["units"].as_array() {
                 println!("单元：{} 个", units.len());
                 for unit in units.iter().take(5) {
                     println!("  {} {}", unit["label"].as_str().unwrap_or("?"), truncate(unit["text"].as_str().unwrap_or(""), 60));
@@ -361,8 +369,8 @@ fn print_human(envelope: &Value) {
             }
         }
         action_id::DIFF => {
-            println!("变化：{} 处", envelope["summary"]["changedUnits"]);
-            for change in envelope["changes"].as_array().unwrap_or(&vec![]) {
+            println!("变化：{} 处", payload["summary"]["changedUnits"]);
+            for change in payload["changes"].as_array().unwrap_or(&vec![]) {
                 println!(
                     "  [{}] {}\n    - {}\n    + {}",
                     change["kind"].as_str().unwrap_or("?"),
@@ -373,8 +381,8 @@ fn print_human(envelope: &Value) {
             }
         }
         action_id::ARCHIVE_LIST => {
-            println!("共 {} 条", envelope["count"]);
-            for entry in envelope["entries"].as_array().unwrap_or(&vec![]).iter().take(50) {
+            println!("共 {} 条", payload["count"]);
+            for entry in payload["entries"].as_array().unwrap_or(&vec![]).iter().take(50) {
                 println!(
                     "  {:<10} {:>10}  {}",
                     entry["format"].as_str().unwrap_or("?"),
@@ -384,10 +392,10 @@ fn print_human(envelope: &Value) {
             }
         }
         action_id::ARCHIVE_EXTRACT => {
-            println!("解出 {} 个文件", envelope["written"]);
+            println!("解出 {} 个文件", payload["written"]);
         }
         action_id::AGENT_CATALOG => {
-            for agent in envelope["agents"].as_array().unwrap_or(&vec![]) {
+            for agent in payload["agents"].as_array().unwrap_or(&vec![]) {
                 let installed = if agent["installed"] == true { "已安装" } else { "未安装" };
                 println!(
                     "{:<10} {:<14} {}\n           权限：{}",
@@ -399,10 +407,10 @@ fn print_human(envelope: &Value) {
             }
         }
         action_id::AGENT_DISPATCH => {
-            println!("agent：{}（{}）", envelope["label"].as_str().unwrap_or("?"), envelope["agent"].as_str().unwrap_or("?"));
-            println!("权限：{}", envelope["permissionNote"].as_str().unwrap_or(""));
-            println!("工作目录：{}", envelope["cwd"].as_str().unwrap_or(""));
-            let command = envelope["command"]
+            println!("agent：{}（{}）", payload["label"].as_str().unwrap_or("?"), payload["agent"].as_str().unwrap_or("?"));
+            println!("权限：{}", payload["permissionNote"].as_str().unwrap_or(""));
+            println!("工作目录：{}", payload["cwd"].as_str().unwrap_or(""));
+            let command = payload["command"]
                 .as_array()
                 .map(|parts| {
                     parts
@@ -415,31 +423,31 @@ fn print_human(envelope: &Value) {
                 })
                 .unwrap_or_default();
             println!("命令：{command}");
-            if envelope["exitCode"].is_null() && envelope["durationMs"].is_null() {
+            if payload["exitCode"].is_null() && payload["durationMs"].is_null() {
                 println!("（dry-run，什么都没跑）");
                 return;
             }
             println!(
                 "退出码 {}，耗时 {} ms{}",
-                envelope["exitCode"],
-                envelope["durationMs"],
-                if envelope["timedOut"] == true { "，已超时被终止" } else { "" }
+                payload["exitCode"],
+                payload["durationMs"],
+                if payload["timedOut"] == true { "，已超时被终止" } else { "" }
             );
             // 成没成看产物在不在，不看退出码 —— agent 可以退 0 但什么都没写
-            if envelope["outputExists"] == true {
-                println!("✅ 产物已生成：{}", envelope["output"].as_str().unwrap_or("?"));
+            if payload["outputExists"] == true {
+                println!("✅ 产物已生成：{}", payload["output"].as_str().unwrap_or("?"));
             } else {
-                println!("❌ 产物没生成：{}", envelope["output"].as_str().unwrap_or("?"));
+                println!("❌ 产物没生成：{}", payload["output"].as_str().unwrap_or("?"));
             }
         }
         action_id::APPLY => {
-            println!("已写出：{}", envelope["output"]["path"].as_str().unwrap_or("?"));
+            println!("已写出：{}", payload["output"]["path"].as_str().unwrap_or("?"));
             println!(
                 "修订 {} 处，作者 {}",
-                envelope["applied"].as_array().map(Vec::len).unwrap_or(0),
-                envelope["author"].as_str().unwrap_or("?")
+                payload["applied"].as_array().map(Vec::len).unwrap_or(0),
+                payload["author"].as_str().unwrap_or("?")
             );
-            println!("回滚：{}", envelope["rollback"].as_str().unwrap_or(""));
+            println!("回滚：{}", payload["rollback"].as_str().unwrap_or(""));
         }
         _ => println!("{}", serde_json::to_string_pretty(envelope).unwrap_or_default()),
     }

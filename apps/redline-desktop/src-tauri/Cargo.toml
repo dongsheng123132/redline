@@ -22,6 +22,7 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+action-parity-tauri = { git = "https://github.com/dongsheng123132/action-parity", rev = "956df3bf210388a2398b0705e0ea3e10ffead394" }
 redline-cli = { path = "../../../crates/redline-cli" }
 redline-core = { path = "../../../crates/redline-core" }
 tauri = { version = "2", features = ["protocol-asset"] }

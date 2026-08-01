@@ -8,3 +8,4 @@ target/
 dist/
 src-tauri/gen/
 apps/*/src-tauri/gen/
+artifacts/action-parity/

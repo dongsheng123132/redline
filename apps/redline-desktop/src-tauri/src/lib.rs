@@ -1,34 +1,26 @@
 //! Redline 桌面壳的后端 —— 动作核心的 **GUI 面**。
 //!
-//! 这里只有一扇门通向业务：[`redline_call`]。它把 action id 和参数原样转给
-//! `redline_core::dispatch`，跟 CLI 的 `redline call`、将来 MCP 的 tool 调的是
-//! 同一个入口、同一份实现。
+//! 这里只有一扇门通向业务：生成的 `action_parity_call`。上游薄 Adapter
+//! 把请求原样转给 `redline_core` 的共享 Registry，跟 CLI 的 `redline call`、
+//! 将来 MCP 的 tool 调的是同一个入口、同一份实现。
 //!
 //! 除此之外的 command 全是**宿主能力**（读字节给 viewer、存标注、开文件选择器），
 //! 不是业务动作 —— 它们换个宿主就要重写一遍，而业务动作永远只有一份。
 
 use std::sync::Mutex;
 
+use action_parity_tauri::{tauri_command, TauriAdapter};
 use serde_json::{json, Value};
 use tauri::Manager;
 
-/// 唯一的业务入口。前端任何一个按钮，最终都得从这里进。
-///
-/// 返回值就是核心的信封（`ok` / `error` / payload），**不做二次加工** ——
-/// 一旦这里开始「顺手改一下字段名」「顺手补个默认值」，GUI 就变成了第二份实现。
-#[tauri::command]
-fn redline_call(action: String, params: Value) -> Value {
-    redline_core::dispatch(&action, &params)
-}
+// 上游 Adapter 生成唯一业务 command：只反序列化请求并转发到共享 Registry。
+tauri_command!(action_parity_call);
 
 /// 全部可用动作，给界面自查用（也让「GUI 到底绑了哪些动作」可被机器检查）。
 #[tauri::command]
 fn redline_actions() -> Value {
     json!({
-        "actions": redline_core::ACTIONS
-            .iter()
-            .map(|(id, description)| json!({ "id": id, "description": description }))
-            .collect::<Vec<_>>(),
+        "actions": redline_core::action_catalog(),
     })
 }
 
@@ -103,13 +95,14 @@ pub fn run(initial_path: Option<String>) {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(TauriAdapter::from_shared(redline_core::action_registry()))
         .setup(move |app| {
             let dir = app.path().app_data_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
             app.manage(AnnotationStore::load(dir.join("annotations.json")));
             app.manage(InitialFile(initial_path.clone()));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![redline_call, redline_actions, initial_file, read_file_bytes, kv_get, kv_set])
+        .invoke_handler(tauri::generate_handler![action_parity_call, redline_actions, initial_file, read_file_bytes, kv_get, kv_set])
         .run(tauri::generate_context!())
         .expect("Redline 桌面壳启动失败");
 }
