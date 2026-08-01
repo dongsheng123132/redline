@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "generator": {
+    "command": [
+      "cargo",
+      "run",
+      "--quiet",
+      "-p",
+      "redline-core",
+      "--example",
+      "export_action_registry"
+    ],
+    "timeout_ms": 120000
+  },
+  "tests": [
+    {
+      "ref": "tests/action-parity-bindings.test.mjs",
+      "command": [
+        "node",
+        "tests/action-parity-bindings.test.mjs"
+      ],
+      "observations": "artifacts/action-parity/parity-observations.json",
+      "timeout_ms": 240000
+    }
+  ],
+  "artifacts": [
+    "target/debug/redline-cli{exe}"
+  ]
+}

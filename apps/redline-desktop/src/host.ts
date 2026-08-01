@@ -17,17 +17,18 @@ export const tauriHost: RedlineHost = {
   },
 
   async inspectDocument(path: string): Promise<RedlineDocument> {
-    const envelope = await call<Snapshot>(ACTION.inspect, { path });
+    const envelope = await call<Snapshot>(ACTION.DOCUMENT_INSPECT, { path });
     if (!envelope.ok) {
       throw new Error(errorText(envelope) ?? "无法生成语义影子");
     }
+    const snapshot = envelope.result;
     return {
-      docId: envelope.source.sha256,
-      sourcePath: envelope.source.path,
-      sourceSha256: envelope.source.sha256,
-      format: envelope.format,
-      shadow: envelope.shadow,
-      units: envelope.units.map((unit, index) => ({
+      docId: snapshot.source.sha256,
+      sourcePath: snapshot.source.path,
+      sourceSha256: snapshot.source.sha256,
+      format: snapshot.format,
+      shadow: snapshot.shadow,
+      units: snapshot.units.map((unit, index) => ({
         id: unit.id,
         kind: unit.kind,
         index,
@@ -35,7 +36,7 @@ export const tauriHost: RedlineHost = {
         text: unit.text,
         textSha256: unit.textSha256,
       })),
-      notes: envelope.units.flatMap((unit) => (unit.note ? [unit.note] : [])),
+      notes: snapshot.units.flatMap((unit) => (unit.note ? [unit.note] : [])),
     };
   },
 

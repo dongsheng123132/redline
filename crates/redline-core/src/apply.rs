@@ -16,7 +16,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::action;
+use crate::action_id;
 use crate::error::{RedlineError, Result};
 use crate::inspect::{resolve, sha256_hex};
 use crate::ooxml::Parts;
@@ -156,8 +156,8 @@ fn validate_patch(patch: &Patch) -> Result<()> {
         return Err(RedlineError::input("bad_patch", "patch 的 version 必须是 1").with_details(json!({ "version": patch.version })));
     }
     if let Some(id) = &patch.action_id {
-        if id != action::id::APPLY {
-            return Err(RedlineError::input("bad_patch", format!("patch 的 action_id 必须是 {}", action::id::APPLY))
+        if id != action_id::APPLY {
+            return Err(RedlineError::input("bad_patch", format!("patch 的 action_id 必须是 {}", action_id::APPLY))
                 .with_details(json!({ "action_id": id })));
         }
     }

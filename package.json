@@ -10,12 +10,18 @@
     "check:formats": "node scripts/check-format-parity.mjs",
     "check:shadowdoc": "node --test scripts/shadowdoc-validate.test.mjs",
     "check:shadowdoc-pk": "node --test scripts/shadowdoc-pk.test.mjs",
+    "action-parity:generate": "node scripts/generate-action-parity.mjs",
+    "action-parity:check": "node scripts/generate-action-parity.mjs --check",
+    "action-parity:verify": "action-parity verify apps/redline-desktop/src/generated/action-parity.json --plan action-parity.verify.json --out artifacts/action-parity/action-parity.evidence.json --json",
     "benchmark:shadowdoc": "cargo run --release -p redline-core --example shadowdoc_benchmark",
     "benchmark:shadowdoc:corpus": "cargo run --release -p redline-core --example shadowdoc_benchmark -- --corpus-dir target/shadowdoc-pk-corpus",
     "benchmark:shadowdoc:pk": "node scripts/shadowdoc-pk.mjs spec/shadowdoc/benchmark/controlled.manifest.json",
     "desktop:dev": "pnpm --filter redline-desktop tauri dev",
     "desktop:build": "pnpm --filter redline-desktop tauri build",
     "check:core": "node scripts/check-core-purity.mjs",
-    "check": "node scripts/check-format-parity.mjs && node scripts/check-core-purity.mjs && node --test scripts/shadowdoc-validate.test.mjs scripts/shadowdoc-pk.test.mjs && cargo test --workspace"
+    "check": "node scripts/check-format-parity.mjs && node scripts/check-core-purity.mjs && node scripts/generate-action-parity.mjs --check && node --test scripts/shadowdoc-validate.test.mjs scripts/shadowdoc-pk.test.mjs && cargo test --workspace && pnpm run action-parity:verify"
+  },
+  "devDependencies": {
+    "action-parity": "github:dongsheng123132/action-parity#956df3bf210388a2398b0705e0ea3e10ffead394"
   }
 }

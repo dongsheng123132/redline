@@ -18,6 +18,7 @@ redline send 方案.docx --agent codex --output 改后.docx --note "paragraph:2=
 - **stdout 只出结果**，日志走 stderr
 - **非 TTY 自动切 JSON**，管道里永远可解析、不带 ANSI
 - **`ok` 是稳定成功位**，成功失败同一个信封形状
+- **`execution_id` 可追踪到动作核心**，成功 payload 固定在 `result`
 - **退出码**：`0` 成功 / `1` 输入错误 / `2` **安全拒绝** / `3` 内部错误 / `64` 用法错误
 
 `2` 单独占一个码：安全拒绝不是 bug，脚本不该重试，该让人来看。

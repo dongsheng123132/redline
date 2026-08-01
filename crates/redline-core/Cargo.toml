@@ -20,3 +20,4 @@ sha2.workspace = true
 regex.workspace = true
 thiserror.workspace = true
 lopdf.workspace = true
+action-parity-core = { git = "https://github.com/dongsheng123132/action-parity", rev = "956df3bf210388a2398b0705e0ea3e10ffead394" }

@@ -1,0 +1,467 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dongsheng123132/action-parity/v0.5.0/schema/action-parity.schema.json",
+  "actions": [
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call agent.catalog --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        },
+        {
+          "surface": "gui",
+          "target": "generated:ACTION[agent.catalog]",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Return supported AI coding agents and their local availability.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "agent.catalog",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "List AI agents"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call agent.dispatch --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        },
+        {
+          "surface": "gui",
+          "target": "generated:ACTION[agent.dispatch]",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Send annotations and an immutable source reference to an AI agent that writes a new output file.",
+      "effects": {
+        "audit_required": true,
+        "class": "external",
+        "confirmation": "conditional",
+        "notes": "The agent writes a new output path; Redline never modifies the source.",
+        "reversible": true,
+        "risk": "medium"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "agent.dispatch",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "annotations": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "expectedSourceSha256": {
+            "type": "string"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "timeoutSecs": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent",
+          "source",
+          "output"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Dispatch AI agent"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call archive.extract --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Extract an archive into an explicit destination without changing the archive.",
+      "effects": {
+        "audit_required": true,
+        "class": "write",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "archive.extract",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "dest": {
+            "type": "string"
+          },
+          "overwrite": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "dest"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Extract archive"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call archive.list --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "List archive entries without extracting files.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "archive.list",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "List archive"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call document.apply-track-changes --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Write an explicit patch to a new DOCX with native Track Changes; never overwrite the source.",
+      "effects": {
+        "audit_required": true,
+        "class": "write",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "document.apply-track-changes",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "force": {
+            "type": "boolean"
+          },
+          "input": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "input",
+          "patch",
+          "output"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Apply tracked changes"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call document.diff --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        },
+        {
+          "surface": "gui",
+          "target": "generated:ACTION[document.diff]",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Compare two same-format document projections without changing either file.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "document.diff",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "before": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Compare documents"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call document.formats --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Return the canonical format and capability registry.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "document.formats",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "List formats"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call document.inspect --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        },
+        {
+          "surface": "gui",
+          "target": "generated:ACTION[document.inspect]",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Parse a local file into a source-hash-bound ShadowDoc projection.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "document.inspect",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Inspect document"
+    },
+    {
+      "bindings": [
+        {
+          "surface": "cli",
+          "target": "redline call document.verify --params <json> --json",
+          "test": "tests/action-parity-bindings.test.mjs"
+        }
+      ],
+      "description": "Check whether a local file can be parsed without changing it.",
+      "effects": {
+        "audit_required": false,
+        "class": "read",
+        "confirmation": "never",
+        "reversible": true,
+        "risk": "low"
+      },
+      "execution": {
+        "cancellable": false,
+        "headless": true,
+        "headless_evidence": "cargo test -p redline-core",
+        "idempotent": false,
+        "timeout_ms": 30000
+      },
+      "id": "document.verify",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "title": "Verify document"
+    }
+  ],
+  "application": {
+    "description": "Universal document preview, annotation, diff, and AI handoff layer.",
+    "id": "org.redline.desktop",
+    "name": "Redline",
+    "source": "https://github.com/dongsheng123132/redline",
+    "version": "0.1.0"
+  },
+  "generated_from": {
+    "generator": "action-parity-core/0.6.0",
+    "revision": "crates/redline-core/src/registry.rs"
+  },
+  "spec_version": "0.5.0",
+  "surfaces": [
+    {
+      "id": "cli",
+      "kind": "cli",
+      "reachability": "external",
+      "required_for_parity": true,
+      "test_driver": "node:test + redline-cli"
+    },
+    {
+      "exclusion_reason": "Gradual migration: this Surface contains only Actions currently called by the desktop GUI; CLI remains the complete machine Surface.",
+      "id": "gui",
+      "kind": "gui",
+      "reachability": "in-process",
+      "required_for_parity": false,
+      "test_driver": "node:test + action-parity-tauri"
+    }
+  ]
+}

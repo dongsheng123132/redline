@@ -52,10 +52,10 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
-      const envelope = await call<{ agents: AgentInfo[] }>(ACTION.agentCatalog);
+      const envelope = await call<{ agents: AgentInfo[] }>(ACTION.AGENT_CATALOG);
       if (!envelope.ok) return setMessage(errorText(envelope));
-      setAgents(envelope.agents);
-      setAgentId(envelope.agents.find((a) => a.installed)?.id ?? envelope.agents[0]?.id ?? "");
+      setAgents(envelope.result.agents);
+      setAgentId(envelope.result.agents.find((a) => a.installed)?.id ?? envelope.result.agents[0]?.id ?? "");
     })();
   }, []);
 
@@ -103,26 +103,30 @@ export default function App() {
     setMessage(null);
     setReport(null);
     try {
-      const envelope = await call<DispatchReport>(ACTION.agentDispatch, {
-        agent: agentId,
-        source,
-        expectedSourceSha256: doc?.sourceSha256,
-        output,
-        annotations: payloadAnnotations,
-        instruction,
-      });
+      const envelope = await call<DispatchReport>(
+        ACTION.AGENT_DISPATCH,
+        {
+          agent: agentId,
+          source,
+          expectedSourceSha256: doc?.sourceSha256,
+          output,
+          annotations: payloadAnnotations,
+          instruction,
+        },
+        { confirmed: true },
+      );
       if (!envelope.ok) {
         setMessage(errorText(envelope));
         return;
       }
-      setReport(envelope);
+      setReport(envelope.result);
       setOutputVersion((v) => v + 1);
 
       // 产物出来了才去做对比。没产物就别拿一个不存在的文件去 diff，那只会报一个
       // 令人困惑的「文件不存在」，掩盖掉真正的问题（agent 没写出来）。
-      if (envelope.outputExists) {
-        const compared = await call<DiffReport>(ACTION.diff, { before: source, after: output });
-        setDiff(compared.ok ? compared : null);
+      if (envelope.result.outputExists) {
+        const compared = await call<DiffReport>(ACTION.DOCUMENT_DIFF, { before: source, after: output });
+        setDiff(compared.ok ? compared.result : null);
         if (!compared.ok) setMessage(errorText(compared));
       } else {
         setDiff(null);

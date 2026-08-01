@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/action-parity/schema/action-parity.agent-profile.schema.json",
+  "format": "action-parity.agent-profile/v1",
+  "manifest": "apps/redline-desktop/src/generated/action-parity.json",
+  "registry": {
+    "export": [
+      "cargo",
+      "run",
+      "--quiet",
+      "-p",
+      "redline-core",
+      "--example",
+      "export_action_registry"
+    ],
+    "source_paths": [
+      "crates/redline-core/src/registry.rs"
+    ]
+  },
+  "generated_paths": [
+    "apps/redline-desktop/src/generated/action-parity.json",
+    "apps/redline-desktop/src/generated/action-client.ts",
+    "apps/redline-desktop/src/generated/cli-help.json",
+    "apps/redline-desktop/src/generated/mcp-tools.json"
+  ],
+  "commands": {
+    "generate": [
+      "pnpm",
+      "run",
+      "action-parity:generate"
+    ],
+    "generate_check": [
+      "pnpm",
+      "run",
+      "action-parity:check"
+    ],
+    "verify": [
+      "pnpm",
+      "run",
+      "action-parity:verify"
+    ]
+  }
+}

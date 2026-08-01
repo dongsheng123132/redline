@@ -35,19 +35,29 @@ function fail(message, details) {
 
 /** 从 Rust 核心拿权威格式表。 */
 function loadRust() {
-  const candidates = [
-    process.env.REDLINE_BIN,
-    join(root, "target", "debug", process.platform === "win32" ? "redline.exe" : "redline"),
-    join(root, "target", "release", process.platform === "win32" ? "redline.exe" : "redline"),
-  ].filter(Boolean);
-  const bin = candidates.find((p) => existsSync(p));
+  const candidates = () => [
+      process.env.REDLINE_BIN,
+      join(root, "target", "debug", process.platform === "win32" ? "redline-cli.exe" : "redline-cli"),
+      join(root, "target", "debug", process.platform === "win32" ? "redline.exe" : "redline"),
+      join(root, "target", "release", process.platform === "win32" ? "redline-cli.exe" : "redline-cli"),
+      join(root, "target", "release", process.platform === "win32" ? "redline.exe" : "redline"),
+    ].filter(Boolean);
+  let bin = candidates().find((candidate) => existsSync(candidate));
+  if (!bin && !process.env.REDLINE_BIN) {
+    execFileSync("cargo", ["build", "--quiet", "-p", "redline-cli"], {
+      cwd: root,
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    bin = candidates().find((candidate) => existsSync(candidate));
+  }
   if (!bin) {
-    fail("找不到 redline 二进制，先跑 `cargo build`（或用 REDLINE_BIN 指定）", { tried: candidates });
+    fail("找不到 redline 二进制（可用 REDLINE_BIN 指定）", { tried: candidates() });
   }
   const raw = execFileSync(bin, ["formats", "--json"], { encoding: "utf-8" });
   const envelope = JSON.parse(raw);
   if (!envelope.ok) fail("核心返回了错误信封", envelope.error);
-  return envelope;
+  return envelope.result;
 }
 
 /**

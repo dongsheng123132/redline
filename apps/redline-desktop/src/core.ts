@@ -5,20 +5,34 @@
  * 一旦有人图方便在前端「就地算一下」（自己判扩展名、自己拼 diff、自己决定能不能
  * 覆盖文件），GUI 就成了第二份实现，行为迟早跟 CLI 和 MCP 分岔。
  *
- * 对应的后端在 `src-tauri/src/lib.rs` 的 `redline_call`，它也只是原样转发给
- * `redline_core::dispatch` —— 跟 CLI 的 `redline call` 是同一个入口。
+ * 对应的后端是 `action-parity-tauri` 生成的 `action_parity_call`，它只把请求
+ * 转给共享 Registry —— 跟 CLI 的 `redline call` 是同一个入口。
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { RedlineFormat, ShadowDescriptor } from "redline-core";
+import {
+  ACTION,
+  createTauriActionClient,
+  type ActionCallOptions,
+  type ActionId,
+} from "./generated/action-client";
+
+export { ACTION };
 
 /** 核心的统一输出信封。成功失败同一个形状，只有 ok 位不同。 */
 export type Envelope<T = Record<string, unknown>> =
-  | ({ ok: true; version: number; tool: string; action_id: string } & T)
+  | {
+      ok: true;
+      version: number;
+      action_id: string;
+      execution_id: string;
+      result: T;
+    }
   | {
       ok: false;
       version: number;
-      tool: string;
       action_id: string;
+      execution_id: string;
       error: {
         class: "input" | "refused" | "internal";
         code: string;
@@ -27,24 +41,17 @@ export type Envelope<T = Record<string, unknown>> =
       };
     };
 
-/** Action ID 常量。跟 Rust 的 `action::id` 一一对应，改名等于破坏兼容。 */
-export const ACTION = {
-  inspect: "document.inspect",
-  diff: "document.diff",
-  apply: "document.apply-track-changes",
-  verify: "document.verify",
-  formats: "document.formats",
-  archiveList: "archive.list",
-  archiveExtract: "archive.extract",
-  agentCatalog: "agent.catalog",
-  agentDispatch: "agent.dispatch",
-} as const;
+const generatedCall = createTauriActionClient(invoke, {
+  command: "action_parity_call",
+  surface: "gui",
+});
 
 export async function call<T = Record<string, unknown>>(
-  action: string,
+  action: ActionId,
   params: Record<string, unknown> = {},
+  options: ActionCallOptions = {},
 ): Promise<Envelope<T>> {
-  return (await invoke("redline_call", { action, params })) as Envelope<T>;
+  return (await generatedCall(action, params as never, options)) as Envelope<T>;
 }
 
 /** 把信封里的错误转成一句可以直接显示给人的话。 */
